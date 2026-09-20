@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Jiane's Tech Solar Fund. Investors earn a fixed profit interest; households have solar fitted and pay for it in fixed monthly instalments on agreed terms." />
+    <title>Jiane's Tech Solar Fund</title>
+    <base href="/" />
+
+    <!-- The browser chrome takes the panel navy, so the console does not sit in
+         a white frame on mobile. Both themes get the same navy: the panel is a
+         fixed object and does not invert. -->
+    <meta name="theme-color" content="#04152f" />
+
+    <link rel="preload" id="webassembly" />
+
+    <!-- Archivo carries the whole interface: one industrial grotesque with the
+         tabular figures this console's numbers rely on. The width axis comes
+         along for the wordmark, which is set condensed to echo the lettering
+         around the seal's ring. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" />
+
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components/controls.css" />
+    <link rel="stylesheet" href="css/components/shell.css" />
+    <link rel="stylesheet" href="css/components/ledger.css" />
+    <link rel="stylesheet" href="css/components/modal.css" />
+    <link rel="stylesheet" href="css/pages/login.css" />
+    <link rel="stylesheet" href="css/pages/account.css" />
+    <link rel="stylesheet" href="css/pages/register.css" />
+    <link rel="stylesheet" href="css/pages/console.css" />
+    <link rel="stylesheet" href="css/pages/landing.css" />
+    <link rel="stylesheet" href="css/pages/schemes.css" />
+    <link rel="stylesheet" href="css/pages/investment-schemes.css" />
+
+    <!-- The company seal itself, cropped to its disc so the artwork's drop
+         shadow does not shrink the mark inside the icon box. The ring lettering
+         does go to mud below 32px, but the gold ring and the navy shield carry
+         the silhouette, and a recognisable blur of the real mark beats a clean
+         drawing of something that is not the logo.
+
+         No SVG icon: there is no vector of this artwork, and an SVG icon
+         outranks these in Chrome and Firefox, so shipping one would mean the
+         tab never showed the seal. The .ico holds 16/32/48 so each context gets
+         a render tuned for its size rather than one the browser squeezes. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+    <link rel="icon" href="favicon.ico" sizes="48x48 32x32 16x16" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Boot state. Matches the console's ground colour so the load does not
+             flash white before the app paints, and carries the same mark the
+             console opens with. Worded for both doors: the public landing page
+             boots through here as well as the console. -->
+        <div class="boot">
+            <img src="img/jte-mark-128.png" width="44" height="44" alt=""
+                 decoding="async" fetchpriority="high" />
+            <p>Loading Jiane's Tech Solar Fund</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Something went wrong. Reload the page to continue.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">&#x2715;</span>
+    </div>
+
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

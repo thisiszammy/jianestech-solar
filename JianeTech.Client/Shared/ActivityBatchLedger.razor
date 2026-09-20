@@ -1,0 +1,148 @@
+@using JianeTech.Client.Auth.Models
+
+@*
+    ActivityBatchLedger — the audit trail read as operations, not as rows.
+
+    Every write in this platform mints one BatchId and pre-increments an
+    ExecutionOrder per row, so the log has always known which lines belonged to
+    which service call. Nothing had ever read that back: a lock-out arrived as
+    two unrelated lines, and a token replay that revoked five grants as six.
+
+    So each <tbody> is one operation. The band at its head carries the three
+    fields every step of a batch shares by construction — when, who, from where
+    — and the rows beneath carry only what differs, which is the step and what
+    it did. That is why the grouped table reads lighter than the flat one it
+    replaces despite saying more: the actor and the address are printed once per
+    operation instead of once per line.
+
+    An operation that did not go through says so on its band. Everything that
+    went fine says nothing, because twenty chips reading "fine" is not a signal.
+*@
+
+@if (Loading)
+{
+    <div style="padding: var(--s-4) var(--s-5)">
+        @for (var i = 0; i < SkeletonRows; i++)
+        {
+            <div class="skeleton"
+                 style="height: 14px; margin: var(--s-4) 0; width: @(SkeletonWidths[i % SkeletonWidths.Length])"></div>
+        }
+    </div>
+}
+else if (Batches.Count == 0)
+{
+    <div class="empty">
+        <p class="empty__title">@EmptyTitle</p>
+        <p class="empty__body">@EmptyBody</p>
+    </div>
+}
+else
+{
+    <div class="ledger-scroll">
+        <table class="ledger ledger--grouped">
+            <thead>
+                <tr>
+                    <th class="ledger__index" scope="col">#</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Detail</th>
+                </tr>
+            </thead>
+
+            @foreach (var (batch, offset) in Batches.Select((b, i) => (b, i)))
+            {
+                var ordinal = StartIndex + offset;
+
+                <tbody class="batch">
+                    <tr class="batch__head">
+                        <td class="ledger__index">@ordinal</td>
+
+                        @* scope=rowgroup: this band names the rows beneath it, which is
+                           what lets a screen reader read a step without losing who did
+                           it and when. *@
+                        <th class="batch__cell" colspan="2" scope="rowgroup">
+                            <span class="batch__meta">
+                                <span class="batch__when">
+                                    <b>@batch.ExecutedOn.ToString("HH:mm:ss")</b>
+                                    @batch.ExecutedOn.ToString("d MMM yyyy")
+                                </span>
+
+                                @if (batch.ExecutedByName is { Length: > 0 })
+                                {
+                                    <span class="batch__who">
+                                        @batch.ExecutedByName
+                                        <span>@batch.ExecutedByEmail</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="batch__anon">Unidentified</span>
+                                }
+
+                                <span class="batch__ip">@batch.IpAddress</span>
+
+                                @if (batch.Status is "failed" or "blocked")
+                                {
+                                    <span class="chip chip--@batch.Status batch__outcome">
+                                        @(batch.Status == "failed" ? "Refused" : "Blocked")
+                                    </span>
+                                }
+
+                                @* Only when there is more than one. Most operations in the
+                                   console today write a single row, and a band that says
+                                   "1 step" twenty times down a page is not telling anyone
+                                   anything — the step numbered 4.1 under it already says
+                                   there is one. The count is a signal for the operations
+                                   that did several things at once. *@
+                                @if (batch.Items.Count > 1)
+                                {
+                                    <span class="batch__steps">@batch.Items.Count steps</span>
+                                }
+                            </span>
+                        </th>
+                    </tr>
+
+                    @foreach (var step in batch.Items)
+                    {
+                        <tr class="batch__step">
+                            @* batch.step — 3.1, 3.2 — so the number says which operation
+                               this line belongs to as well as where it sits inside it. *@
+                            <td class="ledger__index ledger__index--step">@ordinal.@step.ExecutionOrder</td>
+                            <td class="ledger__event">
+                                <span class="ledger__event-inner">
+                                    <span class="dot dot--@step.Status"></span>
+                                    @step.ActivityLabel
+                                </span>
+                            </td>
+                            <td class="ledger__detail">@step.Detail</td>
+                        </tr>
+                    }
+                </tbody>
+            }
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public List<ActivityLogBatch> Batches { get; set; } = [];
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    /// <summary>The number the first operation on this page carries.</summary>
+    [Parameter]
+    public int StartIndex { get; set; } = 1;
+
+    [Parameter]
+    public int SkeletonRows { get; set; } = 10;
+
+    [Parameter]
+    public string EmptyTitle { get; set; } = "Nothing recorded yet";
+
+    [Parameter]
+    public string EmptyBody { get; set; } =
+        "Every action taken in the console is written here — who did it, when, and from where.";
+
+    /// <summary>Varied widths so the placeholder reads as text, not as bars.</summary>
+    private static readonly string[] SkeletonWidths = ["62%", "88%", "45%", "74%", "56%", "80%"];
+}

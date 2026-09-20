@@ -1,0 +1,20 @@
+@page "/manage/customers"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Customers · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Customers</h1>
+        <p class="page-head__sub">Households with an installation on an instalment scheme.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <section class="panel">
+        <UnderConstruction Title="Customers are not in the console yet"
+                           Body="A customer takes the installation now and pays it off in monthly instalments, on the scheme their electricity bill qualifies them for. The records exist in the database; nothing reads or writes them from here yet." />
+    </section>
+</div>

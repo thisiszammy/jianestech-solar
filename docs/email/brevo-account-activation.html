@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <!-- Forced dark mode is opted out of deliberately. The navy band is a physical
+       object - the seal's own ground - exactly as --panel-dark is in the console,
+       where it does not invert either. A client's inversion algorithm turns that
+       band to mud and lifts the gold off its dark ground, which is the one thing
+       tokens.css forbids. -->
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+
+  <title>Set your password &mdash; Jiane&rsquo;s Tech Solar Fund</title>
+
+  <!--
+  ============================================================================
+  BREVO SETUP - read before saving this in the template editor
+  ============================================================================
+
+  Transactional parameters (all passed under `params` on the send):
+
+    FIRSTNAME       Maria                     greeting; sentence rewrites if absent
+    FULLNAME        Maria S. Cruz             row is dropped if absent
+    USERNAME        mcruz
+    ACTIVATION_URL  https://.../activate?t=   one-time, signed
+    EXPIRES_AT      22 Sep 2026, 4:12 pm
+    HELP_URL        https://.../help
+    PRIVACY_URL     https://.../privacy
+
+  Example send (Brevo POST /v3/smtp/email):
+
+    { "templateId": 0,
+      "to": [{ "email": "maria@example.com", "name": "Maria S. Cruz" }],
+      "params": { "FIRSTNAME": "Maria", "FULLNAME": "Maria S. Cruz", "USERNAME": "mcruz",
+                  "ACTIVATION_URL": "https://...", "EXPIRES_AT": "22 Sep 2026, 4:12 pm",
+                  "HELP_URL": "https://...", "PRIVACY_URL": "https://..." } }
+
+  Three things to replace before the first send - each is marked REPLACE below:
+
+    1. The seal's URL. Upload docs/email/jte-seal-192.png to Brevo's media
+       library and paste back the absolute https address it gives you; a
+       relative path shows nothing in an inbox. If the image never loads the
+       header still reads correctly - the alt text is styled gold-on-navy and
+       carries the company name.
+    2. support@jianestech.ph, in the security note and again in the footer.
+    3. The postal line in the footer.
+
+  Suggested subject:  Set your password - Jiane's Tech Solar Fund
+
+  Send this as a TRANSACTIONAL template, not a campaign: it carries no
+  unsubscribe link, which is correct for account mail and wrong for marketing.
+
+  Import it in Brevo as raw HTML ("Paste your code" / "Import HTML"), not into
+  the drag-and-drop builder. The conditional tags around the account-holder row
+  sit between <table> and <tr>, where an HTML parser is entitled to move them out
+  of the table; Brevo substitutes at send time on the stored source, so the
+  raw-HTML route is exact, while a round trip through the visual editor can
+  break the pairing. Edit this file and re-import rather than editing there.
+  ============================================================================
+  -->
+
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <style>
+    table, td, div, p, a, h1 { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+
+  <!-- Archivo carries the whole console; the fallback is a grotesque of the same
+       build, so a client without webfonts loses the voice, not the setting. -->
+  <!--[if !mso]><!-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!--<![endif]-->
+
+  <style>
+    :root { color-scheme: light only; supported-color-schemes: light only; }
+
+    body, table, td, p, a, h1 { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: #f4f6f8; }
+    a { text-decoration: none; }
+
+    /* The link is the only interactive thing here, so it keeps a real focus ring
+       for anyone reading in a browser-based client. */
+    a:focus-visible { outline: 2px solid #8a6428; outline-offset: 3px; border-radius: 3px; }
+
+    @media only screen and (max-width: 620px) {
+      .container  { width: 100% !important; }
+      .pad-x      { padding-left: 22px !important; padding-right: 22px !important; }
+      .statement  { font-size: 26px !important; }
+      .cta a      { display: block !important; }
+      .rail-label { font-size: 13px !important; }
+      .rail-value { font-size: 14px !important; }
+      .band-sub   { font-size: 11px !important; }
+      .foot-col   { display: block !important; width: 100% !important; text-align: left !important; }
+      .foot-col-2 { padding-top: 14px !important; }
+    }
+  </style>
+</head>
+
+<body style="margin:0;padding:0;background:#f4f6f8;">
+
+  <!-- Inbox preview line. Hidden in the body, and padded out so a client cannot
+       drag the next visible string in behind it. -->
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#f4f6f8;">
+    Your account has been created. Setting a password is the last step &mdash; the link works until {{ params.EXPIRES_AT }}.
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6f8;">
+    <tr>
+      <td align="center" style="padding:24px 16px 0;">
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+          <tr>
+            <td class="pad-x" style="padding:0 4px 10px;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;color:#5c7190;">
+              Can&rsquo;t read this? <a href="{{ mirror }}" style="color:#1f5f85;text-decoration:underline;">Open it in your browser</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6f8;">
+    <tr>
+      <td align="center" style="padding:0 16px 8px;">
+
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="width:600px;max-width:600px;background:#ffffff;border:1px solid #dce2ea;border-radius:11px;overflow:hidden;">
+
+          <!-- ================================================================
+               The band. The seal on its own navy ground, at a size where the
+               ring lettering still carries - the same budget login.css spends.
+               This field does not invert; everything drawn on it assumes a dark
+               ground, which is why the gold here is --gold and not --brass.
+               ============================================================= -->
+          <tr>
+            <td class="pad-x" style="padding:24px 32px;background:#04152f;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle" style="width:88px;">
+                    <!-- REPLACE: point this at the seal you upload to Brevo. -->
+                    <img src="https://REPLACE-ME.example.com/email/jte-seal-192.png"
+                         width="88" height="90" alt="Jiane&rsquo;s Tech Enterprise, Est. 2014"
+                         style="display:block;width:88px;height:90px;border:0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;line-height:1.35;color:#c09a52;">
+                  </td>
+                  <td valign="middle" style="padding-left:18px;">
+                    <div style="font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:17px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;color:#ffffff;mso-line-height-rule:exactly;">
+                      Jiane&rsquo;s Tech Solar Fund
+                    </div>
+                    <div class="band-sub" style="padding-top:5px;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;font-weight:500;line-height:1.35;color:#c09a52;mso-line-height-rule:exactly;">
+                      A division of Jiane&rsquo;s Tech Enterprise
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- The seal's own metal, drawn as the edge where the band meets the
+               paper. One hairline, on the dark side of the boundary. -->
+          <tr>
+            <td height="2" style="height:2px;background:#c09a52;font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td>
+          </tr>
+
+          <!-- ================================================================
+               The statement. One setting, large, tight, no accented word - the
+               type treatment is the design, not a vehicle for a tagline.
+               ============================================================= -->
+          <tr>
+            <td class="pad-x" style="padding:36px 32px 0;">
+              <h1 class="statement" style="margin:0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:31px;font-weight:700;line-height:1.08;letter-spacing:-0.032em;color:#0d2342;mso-line-height-rule:exactly;">
+                Your account needs a password{% if params.FIRSTNAME %}, {{ params.FIRSTNAME }}{% endif %}.
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad-x" style="padding:16px 32px 0;">
+              <p style="margin:0;max-width:48em;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1c3d68;">
+                Your account on the Jiane&rsquo;s Tech Solar Fund has been created. Setting a password is the
+                last step &mdash; until you do, the account is not finished and nobody can sign in to it.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ================================================================
+               The rail. The console's figure treatment carried into the mail:
+               label left, value right, dotted leader tying the two across the
+               gap so the eye does not have to track empty space. Figures are
+               tabular, so the username sits on the same column as the figures above.
+               ============================================================= -->
+          <tr>
+            <td class="pad-x" style="padding:30px 32px 0;">
+              <div style="font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;line-height:1.35;color:#8a6428;">
+                Your account
+              </div>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin-top:6px;">
+
+                {% if params.FULLNAME %}
+                <tr>
+                  <td class="rail-label" valign="middle" style="padding:11px 0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;line-height:1.35;color:#1c3d68;white-space:nowrap;">Account holder</td>
+                  <td valign="bottom" style="width:100%;padding:0 10px 13px;">
+                    <div style="border-bottom:1px dotted #c0cad8;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</div>
+                  </td>
+                  <td class="rail-value" align="right" valign="middle" style="padding:11px 0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;font-weight:600;line-height:1.35;color:#0d2342;white-space:nowrap;">{{ params.FULLNAME }}</td>
+                </tr>
+                {% endif %}
+
+                <tr>
+                  <td class="rail-label" valign="middle" style="padding:11px 0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:14px;line-height:1.35;color:#1c3d68;white-space:nowrap;">Username</td>
+                  <td valign="bottom" style="width:100%;padding:0 10px 13px;">
+                    <div style="border-bottom:1px dotted #c0cad8;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</div>
+                  </td>
+                  <td class="rail-value" align="right" valign="middle" style="padding:11px 0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;font-weight:600;line-height:1.35;color:#0d2342;white-space:nowrap;font-variant-numeric:tabular-nums lining-nums;">{{ params.USERNAME }}</td>
+                </tr>
+
+
+
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- ================================================================
+               The action. Navy on paper, 7px corner, 48px tall, weight 600 -
+               the console's own .btn--primary, so the control pressed here and
+               the control pressed on the next screen are the same object.
+               Gold was not an option: #c09a52 on paper is 2.6:1.
+               ============================================================= -->
+          <tr>
+            <td class="pad-x cta" align="left" style="padding:32px 32px 0;">
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                           href="{{ params.ACTIVATION_URL }}" style="height:48px;v-text-anchor:middle;width:212px;"
+                           arcsize="15%" stroke="f" fillcolor="#0d2342">
+                <w:anchorlock/>
+                <center style="color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">Set your password</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-- -->
+              <a href="{{ params.ACTIVATION_URL }}"
+                 style="display:inline-block;min-width:156px;padding:0 28px;background:#0d2342;border:1px solid #0d2342;border-radius:7px;color:#f4f6f8;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:15px;font-weight:600;letter-spacing:-0.005em;line-height:46px;text-align:center;text-decoration:none;mso-hide:all;">
+                Set your password
+              </a>
+              <!--<![endif]-->
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad-x" style="padding:18px 32px 0;">
+              <p style="margin:0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;color:#5c7190;font-variant-numeric:tabular-nums lining-nums;">
+                The link works until {{ params.EXPIRES_AT }} and can be used once. After that, ask your
+                administrator to send a new one.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="pad-x" style="padding:28px 32px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td height="1" style="height:1px;background:#eaeef3;font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- The address itself, in the instrumentation cyan the console keeps
+               for data marks rather than for chrome. -->
+          <tr>
+            <td class="pad-x" style="padding:22px 32px 0;">
+              <p style="margin:0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;color:#5c7190;">
+                If the button does nothing, paste this address into your browser:
+              </p>
+              <p style="margin:9px 0 0;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;word-break:break-all;">
+                <a href="{{ params.ACTIVATION_URL }}" style="color:#1f5f85;text-decoration:underline;">{{ params.ACTIVATION_URL }}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- The seal's own red, and the only coloured field on the paper. It
+               says what has happened and what to do, in the console's voice. -->
+          <tr>
+            <td class="pad-x" style="padding:24px 32px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#fbe9e8;border:1px solid #f2cfcd;border-radius:7px;">
+                <tr>
+                  <td style="padding:14px 16px;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;color:#1c3d68;">
+                    <span style="font-weight:600;color:#ae1219;">Not expecting this?</span>
+                    Then nothing has happened yet &mdash; the account stays closed until a password is set, and the
+                    link above expires on its own. Tell us at
+                    <!-- REPLACE: your real support address, here and in the footer. -->
+                    <a href="mailto:support@jianestech.ph" style="color:#ae1219;text-decoration:underline;font-weight:600;">support@jianestech.ph</a>
+                    and we will close it now.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- ==================================================================
+             Footer. Two facts and two links, on their own lines - no meta
+             string joined with middle dots.
+             =============================================================== -->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+          <tr>
+            <td class="pad-x" style="padding:24px 36px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="foot-col" valign="top" style="font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.65;color:#5c7190;">
+                    <span style="font-weight:600;color:#1c3d68;">Jiane&rsquo;s Tech Enterprise</span><br>
+                    <!-- REPLACE: the registered postal address. -->
+                    Cebu, Philippines<br>
+                    <a href="mailto:support@jianestech.ph" style="color:#1f5f85;text-decoration:underline;">support@jianestech.ph</a>
+                  </td>
+                  <td class="foot-col foot-col-2" align="right" valign="top" style="font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.65;color:#5c7190;">
+                    <a href="{{ params.HELP_URL }}" style="color:#1f5f85;text-decoration:underline;">Help</a><br>
+                    <a href="{{ params.PRIVACY_URL }}" style="color:#1f5f85;text-decoration:underline;">Privacy</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="pad-x" align="left" style="padding:18px 36px 32px;font-family:'Archivo','Segoe UI',Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;color:#5c7190;">
+              Sent automatically by the fund console. Replies to this address are not read.
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

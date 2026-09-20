@@ -1,0 +1,13 @@
+/* Boot state — shown by index.html before the app paints. Kept here rather than
+   inline so it uses the same ground colour as the console. */
+.boot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 100dvh;
+    color: #5c7190;
+    font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.8125rem;
+}

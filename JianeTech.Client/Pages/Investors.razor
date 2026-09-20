@@ -1,0 +1,20 @@
+@page "/manage/investors"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Investors · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Investors</h1>
+        <p class="page-head__sub">People who placed capital with the fund.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <section class="panel">
+        <UnderConstruction Title="Investors are not in the console yet"
+                           Body="An investor places capital, receives a fixed profit interest, and has an installation fitted at no cost. The records exist in the database; nothing reads or writes them from here yet." />
+    </section>
+</div>

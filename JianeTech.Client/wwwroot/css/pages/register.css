@@ -1,0 +1,521 @@
+/* ============================================================================
+   register.css — the public front door's application slip.
+
+   Structurally the two fields login.css established: the fixed navy panel, and
+   the ledger paper. Two things are different, and both are because of what
+   this page is rather than how it should look.
+
+   The panel carries a run. Signing in is over the moment the button is
+   pressed; opening an account is not, because a link has to arrive first — so
+   the panel spends its space telling a stranger what happens next, drawn as a
+   routed trace with the live node lit. It is the same vocabulary the sign-in
+   field and the landing page's circuit are drawn in, and unlike either of them
+   it is not a page-load moment: it moves when the person acts, and only then.
+
+   The paper side is two columns wide rather than one. Six fields stacked in a
+   380px column is a scroll on a laptop, and a form that scrolls hides its own
+   submit button.
+
+   Everything else is deliberately the sign-in page's: the same seal at the same
+   size, the same statement setting, the same plain fields. Nothing here
+   competes with the run.
+   ========================================================================== */
+
+.register {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
+    min-height: 100dvh;
+}
+
+/* --- Left: the panel ----------------------------------------------------- */
+/* --focus flips to --gold-lit here via the rule in tokens.css that covers the
+   dark fields; this panel is listed there alongside .login__panel. */
+.register__panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--s-10);
+    padding: var(--s-10);
+    background: var(--panel-dark);
+    color: #fff;
+
+    /* The same edge the sidebar and the sign-in panel carry. In dark mode the
+       panel and the paper are close enough that without it the split reads as
+       a rendering seam rather than as two surfaces meeting. */
+    border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.register__lockup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-3);
+}
+
+.register__seal {
+    display: block;
+    width: clamp(104px, 13vw, 156px);
+    height: auto;
+
+    /* The artwork is a physical badge, so it gets the shadow a badge casts on
+       the panel it is fixed to. The only drop shadow on the page. */
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));
+}
+
+.register__division {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+/* Everything the panel says, as one block against its foot. Grouped rather
+   than spaced apart so the statement lands in the same place whichever state
+   the page is in — the run and the note both change height with it. */
+.register__say {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-8);
+}
+
+/* The statement, in the same setting the sign-in panel uses. One setting,
+   large, tight, and no single word accented. */
+.register__statement {
+    max-width: 17ch;
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+}
+
+.register__panel-note {
+    max-width: 40ch;
+    padding-top: var(--s-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================================================
+   The run — three steps as a routed trace
+   ========================================================================== */
+/* An unlit trace, mixed to an opaque colour rather than drawn at low opacity,
+   the same way FundCircuit handles its dim runs: a node is a disc filled with
+   the panel colour, and a translucent trace shows straight through it. */
+.run {
+    --run-dim: color-mix(in srgb, var(--trace) 34%, var(--panel-dark));
+    --run-node: 14px;
+
+    display: grid;
+    gap: var(--s-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.run__step {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--run-node) minmax(0, 1fr);
+    gap: var(--s-4);
+    align-items: start;
+}
+
+/* The trace itself, from this node down to the next. Two layers: the dim run
+   is always drawn, and the lit one is scaled over it as steps complete —
+   scaleY rather than height so the fill is a transform, not a reflow. */
+.run__step:not(:last-child)::before,
+.run__step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--run-node) / 2);
+    top: calc(var(--run-node) + 3px);
+    bottom: calc(-1 * var(--s-5));
+    width: 2px;
+    transform: translateX(-50%);
+}
+
+.run__step:not(:last-child)::before {
+    background: var(--run-dim);
+}
+
+.run__step:not(:last-child)::after {
+    background: var(--trace);
+    transform: translateX(-50%) scaleY(0);
+    transform-origin: top;
+    transition: transform var(--dur-base) var(--ease);
+}
+
+.run__step--done:not(:last-child)::after {
+    transform: translateX(-50%) scaleY(1);
+}
+
+/* The node. A ring while the step is ahead, filled once it is reached — and
+   gold exactly once, on the step the person is actually on. Bright gold lives
+   only on the dark panel, which is where this is. */
+.run__node {
+    width: var(--run-node);
+    height: var(--run-node);
+
+    /* Aligns the node's middle with the middle of the label's first line
+       rather than with the top of its box. */
+    margin-top: 2px;
+
+    border: 2px solid var(--run-dim);
+    border-radius: 50%;
+    background: var(--panel-dark);
+    transition:
+        background var(--dur-base) var(--ease),
+        border-color var(--dur-base) var(--ease),
+        box-shadow var(--dur-base) var(--ease);
+}
+
+.run__step--done .run__node {
+    border-color: var(--trace);
+    background: var(--trace);
+}
+
+.run__step--live .run__node {
+    border-color: var(--gold-lit);
+    background: var(--gold-lit);
+    box-shadow: 0 0 0 4px rgba(246, 222, 150, 0.16);
+}
+
+.run__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.run__text b {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.run__text span {
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+/* A step not yet reached is quieter than one that has been — the run says
+   where you are by weight as well as by the lit node, so the state does not
+   rest on colour alone. */
+.run__step--ahead .run__text b {
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.run__step--ahead .run__text span {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* --- Right: the paper ---------------------------------------------------- */
+.register__side {
+    display: grid;
+    place-items: center;
+    padding: var(--s-10) var(--s-6);
+    background: var(--paper);
+}
+
+.register__form {
+    width: 100%;
+    max-width: 460px;
+}
+
+.register__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.register__lede {
+    margin-top: var(--s-2);
+    max-width: 48ch;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--ink-3);
+}
+
+.register__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+    margin-top: var(--s-6);
+}
+
+/* Two columns on a comfortable width, one below it — the same arrangement the
+   console's own account form uses, for the same reason. A field holding a
+   whole sentence spans both. */
+.register__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-4);
+}
+
+.register__grid > .field--wide {
+    grid-column: 1 / -1;
+}
+
+/* The line under a field, holding its hint or — when there is one — the reason
+   it was refused.
+
+   It is reserved whether or not anything is in it, because a message that
+   appears and disappears moves everything below it, and what sits below this
+   grid is three rows to click and the button that submits the form. Both were
+   caught stepping out from under the pointer: correct a field, click, and the
+   blur removes the message, the form shifts up, and the click lands on the
+   paper between two rows. Reserving the line costs one line of height on the
+   two fields that carry no hint, and nothing moves.
+
+   An error takes the hint's place rather than stacking under it. Once a field
+   is wrong, what it is for matters less than what is wrong with it — and
+   stacking would reintroduce exactly the shift this removes. */
+.field__note {
+    min-height: 1lh;
+    font-size: var(--text-xs);
+}
+
+.field__note:has(.field__error) .field__hint {
+    display: none;
+}
+
+/* --- The one question that is not a fact about the person ---------------- */
+.register__choice {
+    display: grid;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* A legend is not a grid item in every engine, so it is taken out of the flow
+   the group establishes and given its own spacing. */
+.register__choice legend {
+    padding: 0;
+    margin-bottom: var(--s-1);
+}
+
+.register__choice .field__hint {
+    margin-bottom: var(--s-2);
+    max-width: 46ch;
+}
+
+.choice {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--s-3);
+    align-items: start;
+    min-height: 44px;
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    cursor: pointer;
+    transition:
+        border-color var(--dur-fast) var(--ease),
+        background var(--dur-fast) var(--ease);
+}
+
+.choice:hover {
+    border-color: var(--border-strong);
+}
+
+/* The chosen row takes the brand at a whisper — the same wash the focus ring
+   is drawn in, which is the gold that is safe on paper. The border moves with
+   it, so the selection is never carried by the tint alone. */
+.choice:has(input:checked) {
+    border-color: var(--brass);
+    background: var(--gold-wash);
+}
+
+.choice input {
+    width: 17px;
+    height: 17px;
+    margin: 3px 0 0;
+    accent-color: var(--ink-2);
+    cursor: pointer;
+}
+
+.choice__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.choice__text b {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.choice__text span {
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-4);
+}
+
+/* --- Under the form ------------------------------------------------------ */
+.register__alt {
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+}
+
+/* Same target height as a control, because on a phone that is what it has
+   to be. */
+.register__alt a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--trace-deep);
+    text-decoration: underline;
+}
+
+.register__foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--ink-4);
+}
+
+/* --- The states that are not a form -------------------------------------- */
+/* Left-aligned rather than centred: this sits in the same column the form
+   occupied, and centring it would read as a dialog rather than as the page
+   answering. */
+.register__state {
+    margin-top: var(--s-6);
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--border);
+}
+
+.register__state-title {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+.register__state-body {
+    margin-top: var(--s-3);
+    max-width: 48ch;
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    color: var(--ink-3);
+}
+
+.register__state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-6);
+}
+
+/* --- Narrow: the panel becomes a header band ----------------------------- */
+@media (max-width: 899px) {
+    .register {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .register__panel {
+        gap: var(--s-5);
+        padding: var(--s-6) var(--s-4);
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    /* Seal and division share a line here; stacked, they push the form below
+       the fold on a phone, and the form is the job on this screen. */
+    .register__lockup {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-4);
+    }
+
+    .register__say {
+        gap: var(--s-5);
+    }
+
+    .register__statement {
+        max-width: none;
+        font-size: var(--text-lg);
+    }
+
+    /* The run lies down. Three steps stacked vertically is most of a phone's
+       first screen spent on a diagram, so it keeps the nodes and the titles
+       and drops the descriptions — which the form below repeats anyway. */
+    .run {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    .run__step {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--s-2);
+        padding-right: var(--s-3);
+    }
+
+    .run__step:not(:last-child)::before,
+    .run__step:not(:last-child)::after {
+        left: var(--run-node);
+        right: 0;
+        top: calc(var(--run-node) / 2);
+        bottom: auto;
+        width: auto;
+        height: 2px;
+        transform: none;
+    }
+
+    .run__step:not(:last-child)::after {
+        transform: scaleX(0);
+        transform-origin: left;
+    }
+
+    .run__step--done:not(:last-child)::after {
+        transform: scaleX(1);
+    }
+
+    .run__node {
+        margin-top: 0;
+    }
+
+    .run__text span {
+        display: none;
+    }
+
+    /* The commitment note is the panel's quietest line and the form is the job
+       on a phone, so it stands down rather than pushing the first field under
+       the fold. It is said again in the foot note under the form. */
+    .register__panel-note {
+        display: none;
+    }
+
+    .register__side {
+        padding: var(--s-8) var(--s-4);
+        place-items: start center;
+    }
+
+    /* One column: two 160px-wide fields side by side on a phone is worse than
+       a slightly longer form. */
+    .register__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 1280px) {
+    .register__panel {
+        padding: var(--s-12);
+    }
+
+    .register__statement {
+        font-size: var(--text-3xl);
+    }
+}

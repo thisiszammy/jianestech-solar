@@ -1,0 +1,89 @@
+@*
+    ConfirmDialog — the pause before something that changes access.
+
+    Same dismissal contract as every dialog in this console: Cancel and the ✕,
+    nothing else. That matters more here than on a form. A confirmation that a
+    stray click can dismiss teaches people to click through it, and a
+    confirmation people click through is worse than none at all.
+
+    The confirming button is the only red in the console that is not a status:
+    it is safe there because the sentence above it has already said what will
+    happen and to whom.
+*@
+
+<Modal Open="Open" Title="@Title" Lede="@Lede" Busy="Busy" OnClose="OnCancel">
+    <div class="modal__body">
+        @if (Error is { Length: > 0 })
+        {
+            <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-4)">
+                <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                <span>@Error</span>
+            </div>
+        }
+
+        <div class="confirm">@ChildContent</div>
+    </div>
+
+    <div class="modal__foot">
+        <p class="modal__note">@Note</p>
+        <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" disabled="@Busy" @onclick="OnCancel">
+                Cancel
+            </button>
+            <button class="btn @(Destructive ? "btn--danger" : "btn--primary")"
+                    type="button" disabled="@Busy" @onclick="OnConfirm">
+                @if (Busy)
+                {
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span>@BusyLabel</span>
+                }
+                else
+                {
+                    <span>@ConfirmLabel</span>
+                }
+            </button>
+        </div>
+    </div>
+</Modal>
+
+@code {
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Lede { get; set; }
+
+    /// <summary>What is about to happen, in a sentence the reader can check.</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The line in the footer — normally what this will write to the audit trail.</summary>
+    [Parameter]
+    public string? Note { get; set; }
+
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Confirm";
+
+    [Parameter]
+    public string BusyLabel { get; set; } = "Working";
+
+    /// <summary>Paints the confirming button as destructive.</summary>
+    [Parameter]
+    public bool Destructive { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>The server's own wording when the action was refused.</summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+}

@@ -1,0 +1,493 @@
+@page "/manage/installment-schemes"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Schemes
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Installment schemes · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Installment schemes</h1>
+        <p class="page-head__sub">The terms a household can be offered for an installation.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" href="manage/installment-schemes/new">
+            <Icon Name="plus" Size="16" />
+            New scheme
+        </a>
+    </div>
+</header>
+
+<div class="page-body">
+    <div class="filters">
+        <div class="filters__search">
+            <span class="filters__icon"><Icon Name="search" Size="17" /></span>
+            <label class="sr-only" for="scheme-search">Search the schemes</label>
+            <input class="field__input"
+                   id="scheme-search"
+                   type="search"
+                   placeholder="Search by what the scheme is called"
+                   value="@_search"
+                   @oninput="OnSearchInput" />
+        </div>
+
+        <div class="filters__field">
+            <label class="filters__label" for="scheme-status">Status</label>
+            <select class="field__select" id="scheme-status" value="@_status" @onchange="OnStatusChange">
+                <option value="">Any status</option>
+                <option value="active">On offer</option>
+                <option value="withdrawn">Withdrawn</option>
+            </select>
+        </div>
+
+        @* Bands rather than an exact term: nobody looks for a scheme by
+           remembering it ran thirty-one months. *@
+        <div class="filters__field">
+            <label class="filters__label" for="scheme-term">Term</label>
+            <select class="field__select" id="scheme-term" value="@_term" @onchange="OnTermChange">
+                <option value="">Any term</option>
+                <option value="short">Up to a year</option>
+                <option value="medium">One to two years</option>
+                <option value="long">Two to five years</option>
+                <option value="extended">Over five years</option>
+            </select>
+        </div>
+
+        @if (HasFilters)
+        {
+            <button class="btn btn--quiet filters__clear" type="button" @onclick="ClearFiltersAsync">
+                Clear filters
+            </button>
+        }
+
+        @if (!_loading)
+        {
+            <span class="filters__count">
+                @_total.ToString("N0") @(_total == 1 ? "scheme" : "schemes")
+            </span>
+        }
+    </div>
+
+    @if (_notice is { Length: > 0 })
+    {
+        <div class="alert alert--success" role="status" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="activity" Size="17" /></span>
+            <span>@_notice</span>
+            <button class="alert__dismiss" type="button" aria-label="Dismiss"
+                    @onclick="() => _notice = null">
+                <Icon Name="close" Size="14" />
+            </button>
+        </div>
+    }
+
+    @if (_error is { Length: > 0 })
+    {
+        <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+            <span>
+                @_error
+                <button class="btn btn--quiet" type="button" style="margin-left: var(--s-2)"
+                        @onclick="() => LoadAsync(_page)">Try again</button>
+            </span>
+        </div>
+    }
+
+    <section class="panel">
+        @if (_loading)
+        {
+            <div style="padding: var(--s-4) var(--s-5)">
+                @for (var i = 0; i < 8; i++)
+                {
+                    <div class="skeleton"
+                         style="height: 14px; margin: var(--s-4) 0; width: @(SkeletonWidths[i % SkeletonWidths.Length])"></div>
+                }
+            </div>
+        }
+        else if (_schemes.Count == 0)
+        {
+            <div class="empty">
+                <p class="empty__title">@EmptyTitle</p>
+                <p class="empty__body">@EmptyBody</p>
+                @if (!HasFilters)
+                {
+                    <a class="btn btn--ghost" href="manage/installment-schemes/new"
+                       style="margin-top: var(--s-2)">Set up the first scheme</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="ledger-scroll">
+            <table class="ledger">
+                <thead>
+                    <tr>
+                        <th class="ledger__index" scope="col">#</th>
+                        <th scope="col">Scheme</th>
+                        <th class="ledger__h-package" scope="col">Package</th>
+                        <th scope="col">Term</th>
+                        <th class="ledger__h-charge" scope="col">Cost of credit</th>
+                        <th class="ledger__h-band" scope="col">Recommended for</th>
+                        <th scope="col">Status</th>
+                        <th class="ledger__h-actions" scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (scheme, offset) in _schemes.Select((s, i) => (s, i)))
+                    {
+                        var figures = SchemeMath.Summarise(ToTerms(scheme));
+
+                        <tr>
+                            @* Counts the whole result set, not the page, so a row
+                               number means the same thing on page 3 as on page 1. *@
+                            <td class="ledger__index">@(FirstOnPage + offset)</td>
+
+                            @* The name is the link to the configuration page rather than
+                               a pencil in the actions column, because unlike an account —
+                               which is edited in a dialog over its own register — a scheme
+                               opens a page of its own. A row that leads somewhere should
+                               say so where the eye already is, and it leaves the actions
+                               column holding the one control that acts in place. *@
+                            <td class="ledger__account">
+                                <a class="ledger__link" href="manage/installment-schemes/@scheme.SchemeId">
+                                    <b>@scheme.Description</b>
+                                </a>
+                                <span>Scheme @scheme.SchemeId</span>
+                            </td>
+
+                            <td class="ledger__package">
+                                <b>@Peso.Whole(scheme.PrincipalAmount)</b>
+                                <span>@Peso.Whole(scheme.DownPayment) down</span>
+                            </td>
+
+                            <td class="ledger__term">
+                                <b>@Peso.Months(scheme.MonthPeriods)</b>
+                                <span>@Peso.Exact(scheme.PeriodicPayment) a month</span>
+                            </td>
+
+                            @* The add-on rate is the number a customer is quoted here, and
+                               the effective rate is what the money actually costs. Both, or
+                               the column is telling half the truth. *@
+                            <td class="ledger__charge">
+                                <b>@Peso.Whole(figures.FinanceCharge)</b>
+                                <span>@Peso.Rate(figures.AddOnMonthlyRate) add-on · @Peso.Rate(figures.EffectiveAnnualRate) a year</span>
+                            </td>
+
+                            @* Which households to put this in front of, not what the
+                               instalment is set against: the bill is a guideline and
+                               settles nothing. The figure is the whole of the fact, and
+                               the bar under it is the same fact drawn against the widest
+                               guideline on the page — so the ladder of bands the register
+                               covers can be read down the column without doing the
+                               arithmetic twenty times. *@
+                            <td class="ledger__band">
+                                @if (scheme.ReferenceBillAmount <= 0)
+                                {
+                                    <b class="ledger__band-none">No guideline</b>
+                                    <span>Not matched to a bill</span>
+                                }
+                                else
+                                {
+                                    <b>@Peso.Whole(scheme.ReferenceBillAmount) and under</b>
+                                    @if (ShowBands)
+                                    {
+                                        <span class="ledger__band-track" aria-hidden="true">
+                                            <span class="ledger__band-fill" style="width: @BandWidth(scheme)"></span>
+                                        </span>
+                                    }
+                                }
+                            </td>
+
+                            <td class="ledger__status">
+                                <span class="ledger__status-inner">
+                                    <span class="dot dot--@scheme.StatusTone"></span>
+                                    @scheme.Status
+                                </span>
+                            </td>
+
+                            <td class="ledger__actions">
+                                <div class="row-actions">
+                                    <button class="icon-btn @(scheme.IsActive ? "icon-btn--danger" : "")"
+                                            type="button"
+                                            title="@ActionVerb(scheme) @scheme.Description"
+                                            aria-label="@ActionVerb(scheme) @scheme.Description"
+                                            @onclick="() => OpenConfirm(scheme)">
+                                        <Icon Name="power" Size="16" />
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+
+            <Pager Page="_page" PageSize="PageSize" Total="_total"
+                   Noun="scheme" OnGo="LoadAsync" />
+        }
+    </section>
+</div>
+
+<ConfirmDialog Open="_confirming is not null"
+               Title="@ConfirmTitle"
+               ConfirmLabel="@ConfirmLabel"
+               BusyLabel="@(_confirming?.IsActive == true ? "Withdrawing" : "Restoring")"
+               Destructive="@(_confirming?.IsActive == true)"
+               Busy="_confirmBusy"
+               Error="@_confirmError"
+               Note="@($"Writes a {(_confirming?.IsActive == true ? "Scheme withdrawn" : "Scheme restored")} row to the activity log.")"
+               OnCancel="CloseConfirm"
+               OnConfirm="ConfirmAsync">
+    @if (_confirming is { } target)
+    {
+        @if (target.IsActive)
+        {
+            <p>
+                <b>@target.Description</b> will no longer be offered to anyone new.
+            </p>
+            <p class="confirm__after">
+                Nothing is deleted, and no household already on these terms is affected —
+                an agreement keeps the figures it was signed on. The scheme stays in this
+                register as <b>Withdrawn</b>, and you can put it back on offer from here.
+            </p>
+        }
+        else
+        {
+            <p>
+                <b>@target.Description</b> can be offered again, on exactly the terms it
+                carries now.
+            </p>
+            <p class="confirm__after">
+                Check those terms first if it has been withdrawn a while — the price of an
+                installation moves, and this scheme still holds the one it was withdrawn at.
+            </p>
+        }
+    }
+</ConfirmDialog>
+
+@code {
+    private const int PageSize = 20;
+
+    /// <summary>Wait for a pause in typing before querying, rather than per keystroke.</summary>
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(320);
+
+    /// <summary>Varied widths so the placeholder reads as text, not as bars.</summary>
+    private static readonly string[] SkeletonWidths = ["64%", "81%", "52%", "74%", "59%", "86%"];
+
+    private List<SchemeRow> _schemes = [];
+    private int _total;
+    private int _page = 1;
+    private bool _loading = true;
+    private string? _error;
+    private string? _notice;
+
+    private SchemeRow? _confirming;
+    private bool _confirmBusy;
+    private string? _confirmError;
+
+    private string _search = string.Empty;
+    private string _status = string.Empty;
+    private string _term = string.Empty;
+
+    private CancellationTokenSource? _debounce;
+
+    private int FirstOnPage => (_page - 1) * PageSize + 1;
+
+    private bool HasFilters =>
+        !string.IsNullOrWhiteSpace(_search)
+        || !string.IsNullOrEmpty(_status)
+        || !string.IsNullOrEmpty(_term);
+
+    private string EmptyTitle => HasFilters
+        ? "No schemes match those filters"
+        : "No schemes yet";
+
+    private string EmptyBody => HasFilters
+        ? "Nothing in the register matches what is set above. Clear the filters to see every scheme."
+        : "A scheme sets what an installation costs, what is paid up front, over how many months, and which households it should be offered to.";
+
+    /// <summary>
+    /// The widest guideline among the schemes on screen, which every band bar is drawn
+    /// against. Taken from the rows on the page rather than from the whole register: a bar
+    /// measured against a scheme the reader cannot see is a comparison they cannot check.
+    /// </summary>
+    private decimal BandScale => _schemes.Count == 0 ? 0m : _schemes.Max(s => s.ReferenceBillAmount);
+
+    /// <summary>
+    /// Whether the bars are drawn at all. A bar is a comparison, and one row has nothing
+    /// to be compared with — a lone bar filling its track would say "the widest band on
+    /// this page", which is true of any scheme on a page of one and worth nothing.
+    /// </summary>
+    private bool ShowBands => _schemes.Count > 1 && BandScale > 0;
+
+    /// <summary>
+    /// A band bar's width, as a percentage of the widest guideline on the page. Written
+    /// against the invariant culture because it is going into a CSS declaration, where a
+    /// decimal comma is not a number.
+    /// </summary>
+    private string BandWidth(SchemeRow scheme)
+        => BandScale <= 0
+            ? "0%"
+            : FormattableString.Invariant($"{scheme.ReferenceBillAmount / BandScale * 100m:0.#}%");
+
+    protected override Task OnInitializedAsync() => LoadAsync(1);
+
+    /// <summary>
+    /// The five figures the arithmetic needs, lifted off a register row. Every derived
+    /// number this table prints is computed here rather than sent by the server — see
+    /// <c>SchemeMath</c> for why the calculation lives in one place, on this side.
+    /// </summary>
+    private static SchemeTerms ToTerms(SchemeRow scheme) => new(
+        scheme.PrincipalAmount,
+        scheme.DownPayment,
+        scheme.PeriodicPayment,
+        scheme.MonthPeriods,
+        scheme.ReferenceBillAmount);
+
+    private static string ActionVerb(SchemeRow scheme) => scheme.IsActive ? "Withdraw" : "Put back on offer";
+
+    private string ConfirmTitle => _confirming is null
+        ? string.Empty
+        : _confirming.IsActive ? "Withdraw this scheme?" : "Put this scheme back on offer?";
+
+    private string ConfirmLabel => _confirming?.IsActive == true ? "Withdraw" : "Put back on offer";
+
+    private async Task OnSearchInput(ChangeEventArgs args)
+    {
+        _search = args.Value?.ToString() ?? string.Empty;
+
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+
+        try
+        {
+            await Task.Delay(SearchDebounce, token);
+            await LoadAsync(1);
+        }
+        catch (TaskCanceledException)
+        {
+            // Superseded by a later keystroke — the newer query owns the result.
+        }
+    }
+
+    private Task OnStatusChange(ChangeEventArgs args)
+    {
+        _status = args.Value?.ToString() ?? string.Empty;
+        return LoadAsync(1);
+    }
+
+    private Task OnTermChange(ChangeEventArgs args)
+    {
+        _term = args.Value?.ToString() ?? string.Empty;
+        return LoadAsync(1);
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _search = string.Empty;
+        _status = string.Empty;
+        _term = string.Empty;
+        return LoadAsync(1);
+    }
+
+    private void OpenConfirm(SchemeRow scheme)
+    {
+        _notice = null;
+        _confirmError = null;
+        _confirmBusy = false;
+        _confirming = scheme;
+    }
+
+    private void CloseConfirm()
+    {
+        if (_confirmBusy) return;
+        _confirming = null;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (_confirming is not { } target || _confirmBusy) return;
+
+        _confirmBusy = true;
+        _confirmError = null;
+
+        var response = await Api.SetSchemeActiveAsync(target.SchemeId, !target.IsActive);
+
+        _confirmBusy = false;
+
+        if (response.Code != 200)
+        {
+            // Stays open with the server's sentence attached — most usefully when putting
+            // a scheme back on offer collided with a newer one holding its name.
+            _confirmError = response.Message;
+            return;
+        }
+
+        _confirming = null;
+        _notice = response.Message;
+
+        await LoadAsync(_page);
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        if (page < 1) return;
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        // The bands partition the register exactly as the filter labels them, so a scheme
+        // the Term column calls two years cannot turn up under "Two to five years".
+        var (minMonths, maxMonths) = _term switch
+        {
+            "short" => ((int?)null, (int?)12),
+            "medium" => (13, 24),
+            "long" => (25, 60),
+            "extended" => (61, null),
+            _ => (null, null),
+        };
+
+        var response = await Api.GetSchemesAsync(
+            page,
+            PageSize,
+            _search,
+            _status switch { "active" => true, "withdrawn" => false, _ => null },
+            minMonths,
+            maxMonths);
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _schemes = response.Data.Items;
+            _total = response.Data.TotalRows;
+            _page = page;
+        }
+        else
+        {
+            _error = response.Message;
+            _schemes = [];
+            _total = 0;
+        }
+
+        _loading = false;
+    }
+
+    public void Dispose()
+    {
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+    }
+}

@@ -1,0 +1,356 @@
+@using System.ComponentModel.DataAnnotations
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@inject FundApiClient Api
+
+@*
+    UserFormDialog — the account form, as a docket over the register.
+
+    One component for both inviting and editing, because the two forms are the
+    same six fields. Neither collects a password: a new account gets one when
+    its holder opens the link this sends, and an existing account keeps the one
+    it has. Two components would have meant two copies of six fields and two
+    places to keep the column widths in step with dbo.Users.
+
+    Two things it deliberately does not do:
+
+      - It does not close itself on Escape or on a click behind it. The only
+        ways out are Cancel and the ✕, both of which are disabled while a save
+        is in flight so nobody can walk away not knowing whether it worked.
+      - It does not word its own server errors. A failure comes back from the
+        API already phrased for a reader — "Username 'jdoe' is already taken."
+        — and is shown verbatim, so the form and the audit trail agree on what
+        happened.
+
+    Validation runs client-side first (the same limits the service's
+    UserValidator enforces, so a length problem never needs a round trip) and
+    the server remains the authority on the cross-row checks it alone can make.
+*@
+
+<Modal @ref="_modal" Open="Open" Title="@Title" Lede="@Lede" Busy="_busy" OnClose="CancelAsync">
+    @* novalidate: the browser's own bubbles would pre-empt the styled messages
+       below and put the first failure somewhere the form cannot reach. The
+       required attributes stay, because they are what a screen reader reads. *@
+    <EditForm Model="_model" OnValidSubmit="SubmitAsync" OnInvalidSubmit="() => _focusInvalid = true" novalidate>
+        <DataAnnotationsValidator />
+
+        <div class="modal__body">
+            @if (_error is { Length: > 0 })
+            {
+                <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-4)">
+                    <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                    <span>@_error</span>
+                </div>
+            }
+
+            <div class="modal__grid">
+                <div class="field">
+                    <label class="field__label" for="uf-first">
+                        First name<span class="field__req" aria-hidden="true">*</span>
+                    </label>
+                    <InputText class="field__input" id="uf-first" autofocus required
+                               autocomplete="off" disabled="@_busy"
+                               @bind-Value="_model.FirstName" />
+                    <ValidationMessage class="field__error" For="() => _model.FirstName" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="uf-last">
+                        Last name<span class="field__req" aria-hidden="true">*</span>
+                    </label>
+                    <InputText class="field__input" id="uf-last" required
+                               autocomplete="off" disabled="@_busy"
+                               @bind-Value="_model.LastName" />
+                    <ValidationMessage class="field__error" For="() => _model.LastName" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="uf-username">
+                        Username<span class="field__req" aria-hidden="true">*</span>
+                    </label>
+                    <InputText class="field__input" id="uf-username" required
+                               autocomplete="off" spellcheck="false" autocapitalize="none"
+                               disabled="@_busy"
+                               @bind-Value="_model.Username" />
+                    <ValidationMessage class="field__error" For="() => _model.Username" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="uf-email">
+                        Email<span class="field__req" aria-hidden="true">*</span>
+                    </label>
+                    <InputText class="field__input" id="uf-email" type="email" required
+                               autocomplete="off" spellcheck="false" autocapitalize="none"
+                               disabled="@_busy"
+                               @bind-Value="_model.Email" />
+                    <ValidationMessage class="field__error" For="() => _model.Email" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="uf-phone">Phone number</label>
+                    @* inputmode=numeric brings up the right keypad without the
+                       spinner and locale parsing a number input drags along. *@
+                    <InputText class="field__input" id="uf-phone" type="tel"
+                               inputmode="numeric" placeholder="09XXXXXXXXX"
+                               autocomplete="off" disabled="@_busy"
+                               @bind-Value="_model.PhoneNumber" />
+                    <ValidationMessage class="field__error" For="() => _model.PhoneNumber" />
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="uf-role">
+                        Role<span class="field__req" aria-hidden="true">*</span>
+                    </label>
+                    <InputSelect class="field__select" id="uf-role" disabled="@(_busy || Roles.Count == 0)"
+                                 @bind-Value="_model.UserType">
+                        @foreach (var role in Roles)
+                        {
+                            <option value="@role.UserType">@role.Label</option>
+                        }
+                    </InputSelect>
+                    <p class="field__hint">@RoleHint</p>
+                </div>
+
+                @* No password here, on either form. A new account gets one when
+                   its holder opens the invitation; an existing one keeps what it
+                   has. Nobody types a credential on someone else's behalf. *@
+                @if (IsCreate)
+                {
+                    <p class="modal__section">Getting them in</p>
+
+                    <p class="field__hint field--wide">
+                        An invitation goes to the address above with a link to set a password.
+                        It can be used once and expires in seven days. Until then the account
+                        shows as <b>Pending</b> here, and you can send the invitation again
+                        from its row.
+                    </p>
+                }
+            </div>
+        </div>
+
+        <div class="modal__foot">
+            <p class="modal__note">Writes a <b>@AuditLabel</b> row to the activity log.</p>
+            <div class="modal__actions">
+                <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="CancelAsync">
+                    Cancel
+                </button>
+                <button class="btn btn--primary" type="submit" disabled="@_busy">
+                    @if (_busy)
+                    {
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span>@BusyLabel</span>
+                    }
+                    else
+                    {
+                        <span>@SubmitLabel</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    private Modal? _modal;
+    private UserFormModel _model = new();
+
+    /// <summary>Set by a rejected submit; acted on once the render that stamps the invalid classes has landed.</summary>
+    private bool _focusInvalid;
+
+    private bool _busy;
+    private string? _error;
+    private bool _wasOpen;
+
+    [Parameter]
+    public bool Open { get; set; }
+
+    /// <summary>
+    /// Handed down by the page rather than fetched here. The register's filter needs the
+    /// same list, and two components asking for it independently meant the console made
+    /// the identical call twice on every visit.
+    /// </summary>
+    [Parameter]
+    public List<RoleOption> Roles { get; set; } = [];
+
+    /// <summary>The account being edited, or null to add a new one.</summary>
+    [Parameter]
+    public UserRow? Editing { get; set; }
+
+    /// <summary>Raised on Cancel or Close. The page owns <see cref="Open"/>.</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>Raised once the account is saved, carrying the server's own wording.</summary>
+    [Parameter]
+    public EventCallback<SaveOutcome> OnSaved { get; set; }
+
+    /// <summary>
+    /// What to tell the register. <paramref name="NeedsAttention"/> marks the one
+    /// outcome here that succeeded only in part — the account was created but its
+    /// invitation never left — so the page can report it as something still to do
+    /// rather than paint it the same green as a clean save.
+    /// </summary>
+    public record SaveOutcome(string Message, bool NeedsAttention);
+
+    private bool IsCreate => Editing is null;
+
+    private string Title => IsCreate ? "Invite a user" : "Edit account";
+
+    private string Lede => IsCreate
+        ? "They set their own password from a link sent to the address below."
+        : $"{Editing!.FullName} · {Editing.Username}. Their password is not changed here.";
+
+    private string SubmitLabel => IsCreate ? "Send invitation" : "Save changes";
+
+    private string BusyLabel => IsCreate ? "Inviting" : "Saving";
+
+    private string AuditLabel => IsCreate ? "User invited" : "User updated";
+
+    private string RoleHint => _model.UserType == 0
+        ? "Full access, including this register."
+        : "Access to the console without account administration.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Deferred to here rather than done inside OnInvalidSubmit: the invalid classes
+        // are stamped by the render that follows the handler, so there is nothing to find
+        // until it has run.
+        if (!_focusInvalid)
+        {
+            return;
+        }
+
+        _focusInvalid = false;
+
+        if (_modal is not null)
+        {
+            await _modal.FocusFirstInvalidAsync();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // The dialog element lives for the whole page, so its contents have to be set on
+        // the way in. Doing it here rather than on close means a failed save leaves the
+        // form exactly as it was until the person chooses to start again.
+        if (Open && !_wasOpen)
+        {
+            _model = Editing is null
+                ? new UserFormModel
+                {
+                    UserType = Roles.Count > 0 ? Roles[0].UserType : 0,
+                }
+                : new UserFormModel
+                {
+                    FirstName = Editing.FirstName,
+                    LastName = Editing.LastName,
+                    Username = Editing.Username,
+                    Email = Editing.Email,
+                    PhoneNumber = Editing.PhoneNumber,
+                    UserType = Editing.UserType,
+                };
+
+            _error = null;
+            _busy = false;
+        }
+
+        _wasOpen = Open;
+    }
+
+    private Task CancelAsync() => _busy ? Task.CompletedTask : OnCancel.InvokeAsync();
+
+    private async Task SubmitAsync()
+    {
+        if (_busy) return;
+
+        _busy = true;
+        _error = null;
+
+        // Invite and update answer with different payloads, so only what both
+        // outcomes have in common is read back here.
+        var (code, message, needsAttention) = IsCreate
+            ? await InviteAsync()
+            : await UpdateAsync();
+
+        _busy = false;
+
+        if (code == 200)
+        {
+            // Carries the server's sentence, which on an invitation says whether
+            // the mail actually left — the account exists either way, so this is
+            // a 200 the register still has to report honestly.
+            await OnSaved.InvokeAsync(new SaveOutcome(message, needsAttention));
+            return;
+        }
+
+        // Everything else stays on the form with the server's sentence attached — a 400
+        // from the validator, a 429 from the limiter, or an unreachable API.
+        _error = message;
+    }
+
+    private async Task<(int Code, string Message, bool NeedsAttention)> InviteAsync()
+    {
+        var response = await Api.InviteUserAsync(new InviteUserRequest
+        {
+            FirstName = _model.FirstName,
+            LastName = _model.LastName,
+            Username = _model.Username,
+            Email = _model.Email,
+            PhoneNumber = _model.PhoneNumber,
+            UserType = _model.UserType,
+        });
+
+        // A 200 whose mail failed is still a 200: the account is there. The flag is
+        // how the register learns to say so without calling it done.
+        var mailFailed = response.Code == 200 && response.Data is { EmailSent: false };
+
+        return (response.Code, response.Message, mailFailed);
+    }
+
+    private async Task<(int Code, string Message, bool NeedsAttention)> UpdateAsync()
+    {
+        var response = await Api.UpdateUserAsync(Editing!.UserId, new UpdateUserRequest
+        {
+            FirstName = _model.FirstName,
+            LastName = _model.LastName,
+            Username = _model.Username,
+            Email = _model.Email,
+            PhoneNumber = _model.PhoneNumber,
+            UserType = _model.UserType,
+        });
+
+        return (response.Code, response.Message, false);
+    }
+
+    /// <summary>
+    /// The limits here are the ones <c>UserValidator</c> enforces, which are in turn the
+    /// column widths of dbo.Users. They are restated rather than shared because the client
+    /// does not reference the data project — keep the three in step.
+    /// </summary>
+    private sealed class UserFormModel
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(70, ErrorMessage = "First name must be 70 characters or fewer.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(70, ErrorMessage = "Last name must be 70 characters or fewer.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Username is required.")]
+        [StringLength(50, ErrorMessage = "Username must be 50 characters or fewer.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Email must be a valid address.")]
+        [StringLength(60, ErrorMessage = "Email must be 60 characters or fewer.")]
+        public string Email { get; set; } = string.Empty;
+
+        // dbo.Users.PhoneNumber is nvarchar(11) for Philippine mobile numbers, so the
+        // pattern is the column's reason for being that width.
+        [RegularExpression(@"^09\d{9}$", ErrorMessage = "Enter an 11-digit mobile number, e.g. 09171234567.")]
+        public string? PhoneNumber { get; set; }
+
+        public int UserType { get; set; }
+    }
+}

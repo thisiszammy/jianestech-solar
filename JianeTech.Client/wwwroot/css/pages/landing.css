@@ -1,0 +1,1218 @@
+/* ============================================================================
+   landing.css — the public page: panel, paper, panel.
+
+   The console dresses as an official record, and this is the same institution
+   seen from outside. So the page opens and closes on the fixed navy panel — the
+   seal's own ground, the object the sign-in screen is built on — and everything
+   between is ledger paper, ruled rather than boxed. Figures sit in the console's
+   own rail (ledger.css), label left and value right with a dotted leader, not in
+   stat cards: a fund's terms should read like a term sheet.
+
+   The design budget is spent once, on the circuit in the hero. Everything else
+   is deliberately plain so that it is the only thing competing for attention.
+
+   Two conventions this file owns:
+
+     dashed = not filled in.  The page is built ahead of its copy and its
+                 photography. A dashed line — round a figure, under a sentence,
+                 across an empty image — always and only means a placeholder.
+                 Nothing else on the page may be dashed.
+
+     gold stays on the panel. tokens.css reserves bright gold for dark grounds,
+                 and that holds here: the gold run, the gold button and the gold
+                 silkscreen all live on .landing__panel. On paper the warm
+                 accent is --brass, exactly as in the console.
+
+   Written small-screen first. The thresholds are the console's own (640 / 900 /
+   1200) so the two never disagree about what a tablet is; the circuit adds one
+   of its own at 960, explained where it is used.
+   ========================================================================== */
+
+/* Fragment links glide rather than jump — but only on this page. Set globally it
+   would also animate the scroll-to-top Blazor performs on every console
+   navigation, which reads as the page flinching. base.css switches it back off
+   under prefers-reduced-motion. */
+html:has(.landing) {
+    scroll-behavior: smooth;
+}
+
+.landing {
+    --bar-h: 60px;
+    --gutter: var(--s-5);
+    --wrap: 1200px;
+
+    /* The console's 15px is a density for scanning rows. This page is read, so
+       running text steps up one notch on the same scale; controls keep their
+       own size because .btn sets it explicitly. */
+    font-size: var(--text-md);
+    line-height: 1.6;
+}
+
+.landing__wrap {
+    width: min(100% - var(--gutter) * 2, var(--wrap));
+    margin-inline: auto;
+}
+
+/* The bar is sticky, so anything a fragment link lands on has to stop short of
+   it or its heading arrives already covered. */
+.landing [id] {
+    scroll-margin-top: calc(var(--bar-h) + var(--s-5));
+}
+
+/* Focus is sent here by the skip link, not by Tab, so — like the h1 the router
+   focuses (base.css) — it takes the focus without drawing a ring round the
+   whole document. */
+.landing main:focus-visible {
+    outline: none;
+}
+
+/* --- The panel ----------------------------------------------------------- */
+/* One class for every dark field on the page: the bar, the hero, the closing
+   band and the footer. --focus flips to --gold-lit on it via the rule in
+   tokens.css that covers the dark fields, which is why it is a class of its own
+   rather than four background declarations. */
+.landing__panel {
+    background: var(--panel-dark);
+    color: rgba(255, 255, 255, 0.82);
+}
+
+/* --- Paper sections ------------------------------------------------------ */
+/* Spacing between sections lives here and nowhere else. Every section carries
+   this class, so no two rules ever get to argue about the gap. */
+.landing__section {
+    padding-block: clamp(var(--s-16), 9vw, var(--s-32));
+    background: var(--paper);
+    border-top: 1px solid var(--border);
+}
+
+/* Alternate sections are laid on the white sheet, so the page has a rhythm
+   without any section needing a box drawn round it. */
+.landing__section--sheet {
+    background: var(--surface);
+}
+
+.landing__head {
+    max-width: 62ch;
+    margin-bottom: clamp(var(--s-10), 5vw, var(--s-16));
+}
+
+.landing__head h2,
+.company__text h2 {
+    font-size: clamp(var(--text-xl), 2.4vw + 1rem, var(--text-2xl));
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+}
+
+.landing__head p {
+    margin-top: var(--s-4);
+    color: var(--ink-3);
+}
+
+/* --- The placeholder mark ------------------------------------------------ */
+/* --field-border rather than a decorative rule colour: the dashes carry
+   meaning, so they are held to the 3:1 a control's edge is held to. */
+.ph {
+    outline: 1px dashed var(--field-border);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* A sentence cannot wear a box — an outline round wrapped text draws one
+   ragged shape per line — so running prose is underlined instead. Same dash,
+   same meaning. */
+.ph--prose {
+    outline: 0;
+    text-decoration: underline dashed var(--field-border);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 5px;
+}
+
+.landing__panel .ph {
+    outline-color: rgba(255, 255, 255, 0.42);
+}
+
+.landing__panel .ph--prose {
+    text-decoration-color: rgba(255, 255, 255, 0.42);
+}
+
+/* The console's rail, one size up to match this page's running text. The
+   mechanics — leader, order, tabular figures — are ledger.css's and are left
+   alone, so a term here and a figure on the dashboard are the same object. */
+/* 4px on the right is the placeholder mark's: its outline sits 3px off the
+   figure, and a right-aligned figure would otherwise push it past the column. */
+.landing .rail__row {
+    padding: var(--s-3) 4px var(--s-3) 0;
+}
+
+.landing .rail__label {
+    font-size: var(--text-base);
+}
+
+.landing .rail__value {
+    margin: 0;
+    font-size: var(--text-md);
+    text-align: right;
+}
+
+/* ============================================================================
+   The bar
+   ========================================================================== */
+/* A strip of the panel, pinned. Solid rather than transparent-then-solid: over
+   the hero it is the same navy and disappears into it, and over paper it is the
+   panel's edge — no scroll listener, and no frame where it is half of each. */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-bar);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.topbar__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--bar-h);
+}
+
+.topbar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: 44px;
+    margin-right: auto;
+}
+
+.topbar__wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+/* The sidebar's wordmark, to the letter: condensed caps echoing the lettering
+   round the seal's ring. It is the same lockup, so it is set the same way. */
+.topbar__wordmark b {
+    font-size: var(--text-base);
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.topbar__wordmark span {
+    font-size: var(--text-xs);
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.topbar__nav {
+    display: none;
+}
+
+/* The sidebar's link, laid on its side: same alpha scale, same hover. */
+.topbar__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-md);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: var(--text-base);
+    font-weight: 500;
+    transition:
+        background var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.topbar__link:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
+.topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+/* The bar's copy of the call is outlined, not filled. The hero carries the one
+   solid gold button on the page's first screen, and two of them in one view
+   is two primary actions. This one only becomes the way in once the hero has
+   scrolled off, and an outline on navy is button enough for that. */
+.topbar__cta {
+    padding: 0 var(--s-4);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+    white-space: nowrap;
+}
+
+.topbar__cta:hover {
+    border-color: var(--gold-lit);
+    color: var(--gold-lit);
+}
+
+/* The bar's second door. Opening an account is the call, so signing in is a
+   link beside it rather than a second button — one primary action to a view.
+   Hidden until 900px; below that the sheet carries it, where a full-height row
+   is a better target than a 13px link squeezed against the menu toggle. */
+.topbar__signin {
+    display: none;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: var(--s-2);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.topbar__signin:hover {
+    color: var(--gold-lit);
+}
+
+/* Two wordings of one call. A phone's bar has room for the mark, the name and
+   two words; display:none also keeps the unused one out of the button's name. */
+.topbar__cta-long {
+    display: none;
+}
+
+.topbar__toggle {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    cursor: pointer;
+    transition:
+        background var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.topbar__toggle:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
+/* Hung below the bar rather than grown inside it. The bar is sticky, and a
+   sticky box that gets taller shoves the whole document down by the difference
+   — the page would jump under the reader's thumb every time the menu opened. */
+.topbar__menu {
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    padding-block: var(--s-2) var(--s-4);
+    background: var(--panel-dark);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: var(--shadow-md);
+}
+
+/* The class's display would otherwise beat the attribute's. */
+.topbar__menu[hidden] {
+    display: none;
+}
+
+.topbar__menu-link {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.82);
+    font-weight: 500;
+}
+
+.topbar__menu-link:last-child {
+    border-bottom: 0;
+}
+
+/* ============================================================================
+   Hero
+   ========================================================================== */
+.hero {
+    padding-block: var(--s-12) var(--s-16);
+}
+
+/* The statement. Archivo's width axis is the whole treatment: the wordmark
+   takes the condensed end to echo the seal's ring, so the statement takes the
+   expanded end and reads as lettering stamped into a plate rather than typed
+   onto a page. One setting, one colour, no accented word. */
+.hero__statement {
+    max-width: 17ch;
+    color: #fff;
+    font-size: clamp(var(--text-2xl), 7.4vw, var(--text-4xl));
+    font-weight: 700;
+    font-stretch: var(--stretch-display);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+}
+
+.hero__row {
+    display: grid;
+    gap: var(--s-8);
+    margin-top: var(--s-8);
+}
+
+.hero__lede {
+    max-width: 58ch;
+    color: rgba(255, 255, 255, 0.76);
+    text-wrap: pretty;
+}
+
+.hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3) var(--s-6);
+}
+
+.hero__cta {
+    min-height: 52px;
+    padding: 0 var(--s-8);
+    font-size: var(--text-md);
+}
+
+/* The second action is a link, and looks like one: there is one button. The
+   closing panel's "already with the fund" takes the same treatment — it is the
+   same relationship to the gold button beside it, on the same dark ground. */
+.hero__more,
+.closing__alt {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: #fff;
+    font-size: var(--text-base);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.4);
+    text-underline-offset: 5px;
+    transition: text-decoration-color var(--dur-fast) var(--ease);
+}
+
+.hero__more:hover,
+.closing__alt:hover {
+    text-decoration-color: var(--gold-lit);
+}
+
+/* ============================================================================
+   The circuit — see FundCircuit.razor for why it is drawn the way it is
+   ========================================================================== */
+.circuit {
+    /* An unlit trace. Mixed to an opaque colour rather than drawn at low
+       opacity: a via is a ring filled with the panel colour so the run appears
+       to stop at it, and a translucent via lets the run show straight through
+       its middle. */
+    --trace-dim: color-mix(in srgb, var(--trace) 30%, var(--panel-dark));
+
+    margin-top: var(--s-12);
+}
+
+.circuit__board {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* The labels are SVG text and scale with the drawing. The wide board's are 17
+   units in a 1120-unit box, so it needs roughly 900px of room before they clear
+   12px — which, with the gutters, is a 960px viewport. Below that the tall
+   board takes over at a size where its own labels stay legible. */
+.circuit__board--wide {
+    display: none;
+}
+
+.circuit__board--tall {
+    max-width: 380px;
+    margin-inline: auto;
+}
+
+.circuit__base {
+    fill: var(--panel-dark);
+    stroke: var(--trace-dim);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.circuit__base path {
+    fill: none;
+}
+
+/* pathLength="1" on the element makes every run one unit long whatever its
+   real length, so one dash of 1 is the whole run and the offset is simply how
+   much of it is still dark. */
+.circuit__run {
+    fill: none;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: circuit-travel 1400ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.circuit__run--out {
+    stroke: var(--gold);
+    animation-delay: 400ms;
+}
+
+.circuit__run--back {
+    stroke: var(--trace);
+    animation-delay: 1900ms;
+}
+
+/* Vias and chevrons come on as the light reaches them; --at is set per mark in
+   the markup, on the same clock as the two runs above. */
+.circuit__mark {
+    fill: var(--panel-dark);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    animation: circuit-on 320ms var(--ease) var(--at, 0ms) both;
+}
+
+path.circuit__mark {
+    fill: none;
+    stroke-width: 3;
+}
+
+.circuit__mark--out {
+    stroke: var(--gold);
+}
+
+.circuit__mark--back {
+    stroke: var(--trace);
+}
+
+.circuit__seat {
+    fill: var(--panel-dark);
+}
+
+/* A physical badge, so it casts the shadow a badge casts — the same one the
+   sign-in panel gives it, and the only drop shadow in the hero. */
+.circuit__seal {
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));
+}
+
+.circuit__label {
+    fill: rgba(255, 255, 255, 0.9);
+    font-size: 17px;
+    font-weight: 500;
+}
+
+.circuit__board--tall .circuit__label {
+    font-size: 15px;
+}
+
+/* Silkscreen: the sign-in page's division line, to the letter. */
+.circuit__silk {
+    fill: var(--gold);
+    font-size: 14px;
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+@keyframes circuit-travel {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes circuit-on {
+    to { opacity: 1; }
+}
+
+/* ============================================================================
+   How it works
+   ========================================================================== */
+/* A trace with a via at each step, because this is a sequence and the line is
+   what says so. Stacked, it runs down the left; from 900px it turns through 90°
+   and runs along the top. */
+.steps__list {
+    display: grid;
+    gap: var(--s-8);
+    margin: 0;
+    padding: 0 0 0 var(--s-6);
+    list-style: none;
+    border-left: 2px solid var(--border-strong);
+}
+
+.steps__item {
+    position: relative;
+}
+
+/* Centred on the 2px rule: the item's edge is the list's padding away from it,
+   and the ring is 14px wide, so it sits 24 + 1 + 7 = 32px back. */
+.steps__item::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--s-6) * -1 - 8px);
+    top: 10px;
+    width: 14px;
+    height: 14px;
+    border: 3px solid var(--trace-deep);
+    border-radius: 50%;
+    background: var(--paper);
+}
+
+.steps__num {
+    display: block;
+    color: var(--brass);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.steps__item h3 {
+    margin-top: var(--s-3);
+    font-size: var(--text-md);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+}
+
+.steps__item p {
+    margin-top: var(--s-2);
+    max-width: 44ch;
+    color: var(--ink-3);
+    font-size: var(--text-base);
+    line-height: 1.55;
+}
+
+/* ============================================================================
+   Two ways in
+   ========================================================================== */
+.way {
+    display: grid;
+    gap: var(--s-8);
+    padding-block: var(--s-10);
+}
+
+/* Ruled between the two offers only. The section head already stands off the
+   first one by its own margin; a rule there as well doubled the gap. */
+.way + .way {
+    border-top: 1px solid var(--border);
+}
+
+.way:first-of-type {
+    padding-top: 0;
+}
+
+.way:last-child {
+    padding-bottom: 0;
+}
+
+.way__text h3 {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.way__text p {
+    max-width: 56ch;
+    margin-top: var(--s-3);
+    color: var(--ink-2);
+}
+
+.way__terms {
+    margin: var(--s-6) 0 0;
+}
+
+/* ============================================================================
+   ImageSlot — see ImageSlot.razor
+   ========================================================================== */
+/* One corner is cut at 45°, the angle a trace turns at. clip-path would shave
+   a border off along the cut, so the frame is built instead: the box itself is
+   the frame colour, and ::before lays the fill over it one pixel in. */
+.slot {
+    --cut: 28px;
+
+    position: relative;
+    display: block;
+    width: 100%;
+    background: var(--border-strong);
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+
+/* The inner cut is 0.6px shorter than the outer. Inset both axes by 1px and
+   the two diagonals end up 1.4px apart instead of 1 — the frame goes visibly
+   heavy along exactly the edge meant to be its detail. */
+.slot::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    background: var(--surface-2);
+    clip-path: polygon(0 0, calc(100% - var(--cut) + 0.6px) 0, 100% calc(var(--cut) - 0.6px), 100% 100%, 0 100%);
+}
+
+/* The unpopulated array: a panel's cell grid with nothing in it. Two gradients
+   rule the grid solid, and a 45° mask stripes it — one mask dashes the vertical
+   and horizontal lines alike, where a dashed border could do neither. */
+.slot__array {
+    position: absolute;
+    inset: 1px;
+    color: var(--border-strong);
+    background-image:
+        linear-gradient(to right, currentColor 1px, transparent 1px),
+        linear-gradient(to bottom, currentColor 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-position: center;
+    -webkit-mask-image: repeating-linear-gradient(45deg, #000 0 3px, transparent 3px 6px);
+    mask-image: repeating-linear-gradient(45deg, #000 0 3px, transparent 3px 6px);
+}
+
+/* The rating plate. Solid, because it is the one part of the slot that is
+   finished: it is the brief for whoever fills the rest. */
+.slot__plate {
+    position: absolute;
+    left: var(--s-4);
+    bottom: var(--s-4);
+    display: grid;
+    gap: 2px;
+    max-width: min(32ch, calc(100% - var(--s-8)));
+    padding: var(--s-3) var(--s-4);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+}
+
+.slot__plate b,
+.slot__plate .numeric {
+    color: var(--ink-4);
+    font-size: var(--text-xs);
+}
+
+.slot__plate b {
+    font-weight: 700;
+}
+
+.slot--compact {
+    --cut: 12px;
+}
+
+/* A compact slot's one or two words. They get a ground of their own for the
+   same reason the plate does: left bare, the array's dashed rules run straight
+   through the lettering, and wherever one crosses a glyph the text is no longer
+   ink on paper but ink on rule. */
+.slot__caption {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    padding: 2px var(--s-2);
+    background: var(--surface-2);
+    border-radius: var(--r-sm);
+    color: var(--ink-4);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+}
+
+/* Filled: the photograph takes the frame's place and keeps its corner. */
+.slot--filled {
+    height: auto;
+    background: none;
+    object-fit: cover;
+}
+
+/* ============================================================================
+   The company
+   ========================================================================== */
+.company__grid {
+    display: grid;
+    gap: var(--s-10);
+}
+
+.company__text p {
+    max-width: 58ch;
+    margin-top: var(--s-4);
+    color: var(--ink-2);
+}
+
+.company__facts {
+    margin: 0;
+}
+
+.company__partners-title {
+    color: var(--ink-4);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.company__partners ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-4);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* ============================================================================
+   Voices
+   ========================================================================== */
+.voices__grid {
+    display: grid;
+    gap: var(--s-10);
+}
+
+/* Ruled, not carded. The lead voice is ruled in ink and the others in the
+   quieter border, which is all the hierarchy the three of them need. */
+.voice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+    margin: 0;
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--border-strong);
+}
+
+.voice--lead {
+    border-top: 2px solid var(--ink);
+}
+
+.voice blockquote {
+    margin: 0;
+    color: var(--ink-2);
+    quotes: '\201C' '\201D';
+}
+
+.voice blockquote p::before {
+    content: open-quote;
+}
+
+.voice blockquote p::after {
+    content: close-quote;
+}
+
+.voice--lead blockquote {
+    color: var(--ink);
+    font-size: clamp(var(--text-lg), 1.6vw + 1rem, var(--text-xl));
+    font-weight: 600;
+    line-height: 1.22;
+    letter-spacing: -0.025em;
+    text-wrap: pretty;
+}
+
+.voice figcaption {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+}
+
+.voice__portrait {
+    flex: none;
+    width: 56px;
+}
+
+.voice--lead .voice__portrait {
+    width: 88px;
+}
+
+.voice__who {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    color: var(--ink-4);
+}
+
+.voice__who b {
+    color: var(--ink);
+    font-size: var(--text-base);
+    font-weight: 600;
+}
+
+/* ============================================================================
+   Questions
+   ========================================================================== */
+.faq__grid {
+    display: grid;
+    gap: var(--s-8);
+}
+
+.faq__grid .landing__head {
+    margin-bottom: 0;
+}
+
+.faq__list {
+    border-top: 1px solid var(--border-strong);
+}
+
+.faq__item {
+    border-bottom: 1px solid var(--border-strong);
+}
+
+.faq__item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    min-height: 64px;
+    padding: var(--s-4) 0;
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    list-style: none;
+    cursor: pointer;
+}
+
+.faq__item summary::-webkit-details-marker {
+    display: none;
+}
+
+/* A plus that turns into a cross: the one bit of motion on the paper, and it
+   only ever answers the person who opened the question. */
+.faq__mark {
+    flex: none;
+    color: var(--ink-4);
+    transition:
+        transform var(--dur-base) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.faq__item summary:hover .faq__mark {
+    color: var(--ink);
+}
+
+.faq__item[open] .faq__mark {
+    color: var(--brass);
+    transform: rotate(45deg);
+}
+
+.faq__answer {
+    display: grid;
+    gap: var(--s-3);
+    max-width: 68ch;
+    padding: 0 var(--s-8) var(--s-6) 0;
+    color: var(--ink-2);
+}
+
+/* ============================================================================
+   Closing band and footer
+   ========================================================================== */
+.closing {
+    padding-block: clamp(var(--s-16), 9vw, var(--s-24));
+}
+
+.closing__inner {
+    display: grid;
+    gap: var(--s-8);
+}
+
+/* The hero's sentence again, a size down: the page ends on the line it opened
+   with, and the sign-in screen behind the button opens with it a third time. */
+.closing__statement {
+    max-width: 16ch;
+    color: #fff;
+    font-size: clamp(var(--text-xl), 4.6vw, var(--text-3xl));
+    font-weight: 700;
+    font-stretch: var(--stretch-display);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+}
+
+.closing__side {
+    display: grid;
+    gap: var(--s-5);
+    justify-items: start;
+}
+
+.closing__side p {
+    max-width: 44ch;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: var(--text-base);
+}
+
+.foot {
+    padding-block: var(--s-12) var(--s-8);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    font-size: var(--text-base);
+}
+
+.foot__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-8);
+}
+
+.foot__about {
+    grid-column: 1 / -1;
+}
+
+.foot__about .topbar__brand {
+    margin-right: 0;
+}
+
+.foot__about p {
+    max-width: 34ch;
+    margin-top: var(--s-3);
+    color: rgba(255, 255, 255, 0.58);
+    font-size: var(--text-sm);
+}
+
+.foot__title {
+    color: #fff;
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.foot__col ul {
+    display: grid;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.foot__col li {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Clearance for the placeholder mark, on the rows that carry one: an address
+   that wraps to two lines is taller than the row, and its dashed box would
+   otherwise sit against the one below it. The link rows are left at 44px. */
+.foot__col li:has(.ph) {
+    padding-block: 6px;
+}
+
+.foot__col a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: rgba(255, 255, 255, 0.72);
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.foot__col a:hover {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.foot__legal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--s-3) var(--s-8);
+    margin-top: var(--s-10);
+    padding-top: var(--s-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.58);
+    font-size: var(--text-xs);
+}
+
+/* ============================================================================
+   From 640px
+   ========================================================================== */
+@media (min-width: 640px) {
+    .landing {
+        --bar-h: 68px;
+        --gutter: var(--s-8);
+    }
+
+    .topbar__cta-long {
+        display: inline;
+    }
+
+    .topbar__cta-short {
+        display: none;
+    }
+
+    .company__partners ul {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/* ============================================================================
+   From 900px — the twelve columns arrive
+   ========================================================================== */
+@media (min-width: 900px) {
+    .topbar__inner {
+        gap: var(--s-6);
+    }
+
+    .topbar__nav {
+        display: flex;
+        gap: var(--s-1);
+    }
+
+    .topbar__signin {
+        display: inline-flex;
+    }
+
+    .topbar__toggle,
+    .topbar__menu {
+        display: none;
+    }
+
+    .hero {
+        padding-block: var(--s-16) var(--s-20);
+    }
+
+    .hero__row {
+        margin-top: var(--s-10);
+    }
+
+    .circuit {
+        margin-top: var(--s-16);
+    }
+
+    /* The trace turns along the top. The ring moves with it: centred on a 2px
+       rule directly above the item, so 1 + 7 = 8px up. */
+    .steps__list {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        padding: 0;
+        border-left: 0;
+        border-top: 2px solid var(--border-strong);
+    }
+
+    .steps__item {
+        padding-top: var(--s-8);
+    }
+
+    .steps__item::before {
+        left: 0;
+        top: -8px;
+    }
+
+    .way,
+    .company__grid,
+    .voices__grid,
+    .faq__grid,
+    .closing__inner {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        column-gap: var(--s-8);
+    }
+
+    .way {
+        align-items: center;
+        padding-block: var(--s-16);
+    }
+
+    .way__text {
+        grid-column: 1 / span 6;
+    }
+
+    .way__image {
+        grid-column: 8 / span 5;
+    }
+
+    /* The second row mirrors the first, so the two offers face each other
+       across the page instead of queueing down one side of it. */
+    .way--flip .way__text {
+        grid-column: 7 / span 6;
+    }
+
+    .way--flip .way__image {
+        grid-column: 1 / span 5;
+        grid-row: 1;
+    }
+
+    .company__grid {
+        row-gap: var(--s-16);
+    }
+
+    .company__text {
+        grid-column: 1 / span 6;
+    }
+
+    .company__facts {
+        grid-column: 8 / span 5;
+        align-self: end;
+    }
+
+    .company__partners {
+        grid-column: 1 / -1;
+    }
+
+    .voices__grid {
+        row-gap: var(--s-10);
+    }
+
+    .voice--lead {
+        grid-column: 1 / span 7;
+        grid-row: 1 / span 2;
+    }
+
+    .voice:not(.voice--lead) {
+        grid-column: 9 / span 4;
+    }
+
+    .faq__grid .landing__head {
+        grid-column: 1 / span 4;
+    }
+
+    .faq__list {
+        grid-column: 6 / span 7;
+    }
+
+    .closing__inner {
+        align-items: end;
+    }
+
+    .closing__statement {
+        grid-column: 1 / span 7;
+    }
+
+    .closing__side {
+        grid-column: 9 / span 4;
+    }
+
+    .foot__grid {
+        grid-template-columns: 2fr 1fr 1.3fr 1fr;
+    }
+
+    .foot__about {
+        grid-column: auto;
+    }
+}
+
+/* The call moves up beside the lede only once there is room for both. Between
+   900 and 1200 the pair of actions is nearly 400px wide, and set side by side
+   it squeezed the paragraph to a column that ended on a one-word line. */
+@media (min-width: 1200px) {
+    .hero__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: var(--s-16);
+    }
+}
+
+/* The wide board's labels clear 12px from here — see .circuit__board--wide. */
+@media (min-width: 960px) {
+    .circuit__board--wide {
+        display: block;
+    }
+
+    .circuit__board--tall {
+        display: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   base.css already collapses every animation's duration. It leaves the delays
+   alone, and these are staggered up to three seconds deep — so without this the
+   board would still assemble itself in a series of jumps. With it, the finished
+   drawing is simply there on the first frame.
+   ------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+    .circuit__run,
+    .circuit__mark {
+        animation-delay: 0s !important;
+    }
+}

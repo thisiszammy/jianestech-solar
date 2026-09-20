@@ -1,0 +1,200 @@
+@page "/manage"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="page-head__sub">Who is in the fund console, and what they have touched.</p>
+    </div>
+    <span class="page-head__stamp">
+        @(_snapshot is null ? "" : _snapshot.GeneratedOn.ToString("ddd d MMM yyyy, HH:mm"))
+    </span>
+</header>
+
+<div class="page-body">
+    @if (_error is { Length: > 0 })
+    {
+        <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+            <span>
+                @_error
+                <button class="btn btn--quiet" type="button" style="margin-left: var(--s-2)"
+                        @onclick="LoadAsync">Try again</button>
+            </span>
+        </div>
+    }
+
+    <div class="board">
+        <div class="board__spine">
+            <section class="panel">
+                <div class="panel__head">
+                    <h2>Recent activity</h2>
+                    <a class="panel__note" href="manage/activity-logs">See the full log</a>
+                </div>
+                <ActivityLedger Entries="Recent"
+                                ShowOrigin="false"
+                                Loading="_loading"
+                                SkeletonRows="6"
+                                EmptyTitle="Nothing recorded yet"
+                                EmptyBody="Every action taken in the console is written here — who did it, when, and from where." />
+            </section>
+
+            <section class="panel">
+                <div class="panel__head">
+                    <h2>Sign-in attempts</h2>
+                    <span class="panel__note">Last 14 days</span>
+                </div>
+                @if (_loading)
+                {
+                    <div class="band"><div class="skeleton" style="height: 132px"></div></div>
+                }
+                else
+                {
+                    <SignInBand Buckets="SignIns" />
+                }
+            </section>
+        </div>
+
+        <aside class="board__rail">
+            @* Figures as a ruled ledger column, not as cards: label left, value
+               right, dotted leader between, digits aligned down the page. *@
+            <section class="panel">
+                <div class="panel__head"><h2>Standing</h2></div>
+                <div class="rail">
+                    <div class="rail__group">
+                        <div class="rail__row rail__row--lead">
+                            <span class="rail__label">Active accounts</span>
+                            <span class="rail__value">@Figure(_snapshot?.Stats.ActiveAccounts)</span>
+                        </div>
+                        <div class="rail__row">
+                            <span class="rail__label">Locked out</span>
+                            <span class="rail__value @(Stats?.LockedAccounts > 0 ? "rail__value--danger" : "rail__value--muted")">
+                                @Figure(_snapshot?.Stats.LockedAccounts)
+                            </span>
+                        </div>
+                        <div class="rail__row">
+                            <span class="rail__label">Live sessions</span>
+                            <span class="rail__value">@Figure(_snapshot?.Stats.LiveSessions)</span>
+                        </div>
+                    </div>
+
+                    <div class="rail__group">
+                        <p class="rail__caption">Last 30 days</p>
+                        <div class="rail__row">
+                            <span class="rail__label">Sign-ins accepted</span>
+                            <span class="rail__value">@Figure(_snapshot?.Stats.SignIns30d)</span>
+                        </div>
+                        <div class="rail__row">
+                            <span class="rail__label">Sign-ins refused</span>
+                            <span class="rail__value @(Stats?.FailedSignIns30d > 0 ? "rail__value--warn" : "rail__value--muted")">
+                                @Figure(_snapshot?.Stats.FailedSignIns30d)
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="rail__group">
+                        <div class="rail__row">
+                            <span class="rail__label">Audited events</span>
+                            <span class="rail__value">@Figure(_snapshot?.Stats.TotalAuditedEvents)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel__head"><h2>Accounts</h2></div>
+                <div class="status-list">
+                    @if (_loading)
+                    {
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            <div class="skeleton" style="height: 26px"></div>
+                        }
+                    }
+                    else
+                    {
+                        @foreach (var bucket in AccountStatus)
+                        {
+                            <div class="status-row">
+                                <span class="status-row__label">
+                                    <span class="dot" style="background: @ToneColor(bucket.Tone)"></span>
+                                    @bucket.Label
+                                </span>
+                                <span class="status-row__count">@bucket.Count</span>
+                                <span class="status-row__track">
+                                    <span class="status-row__fill status-row__fill--@bucket.Tone"
+                                          style="width: @(Share(bucket.Count))%"></span>
+                                </span>
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+
+@code {
+    private DashboardSnapshot? _snapshot;
+    private bool _loading = true;
+    private string? _error;
+
+    private DashboardStats? Stats => _snapshot?.Stats;
+    private List<ActivityLogEntry> Recent => _snapshot?.RecentActivity ?? [];
+    private List<SignInBucket> SignIns => _snapshot?.SignInActivity ?? [];
+    private List<AccountStatusBucket> AccountStatus => _snapshot?.AccountStatus ?? [];
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        var response = await Api.GetDashboardSnapshotAsync();
+
+        if (response.Code == 401)
+        {
+            // The session ended underneath us. Send them back to sign in rather
+            // than leaving an empty console on screen.
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _snapshot = response.Data;
+        }
+        else
+        {
+            _error = response.Message;
+        }
+
+        _loading = false;
+    }
+
+    /// <summary>An em dash while loading, so the rail keeps its shape.</summary>
+    private string Figure(int? value) => value?.ToString("N0") ?? "—";
+
+    private int Share(int count)
+    {
+        var total = AccountStatus.Sum(b => b.Count);
+        return total <= 0 ? 0 : (int)Math.Round((double)count / total * 100);
+    }
+
+    private static string ToneColor(string tone) => tone switch
+    {
+        "success" => "var(--success)",
+        "warn" => "var(--warn)",
+        "danger" => "var(--danger)",
+        _ => "var(--neutral)",
+    };
+}

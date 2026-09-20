@@ -1,0 +1,22 @@
+@*
+    FieldError — one rejected field's sentence, under the field it belongs to.
+
+    Rendered as nothing at all when there is no message, so a form's markup can
+    name the error slot beside every input without carrying an empty element for
+    each one. The id is the field's own, because the input points at it with
+    aria-describedby: a message that is not announced is a message the person
+    filling in the form never receives.
+*@
+
+@if (Message is { Length: > 0 })
+{
+    <span class="field__error" id="@Id">@Message</span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Message { get; set; }
+}

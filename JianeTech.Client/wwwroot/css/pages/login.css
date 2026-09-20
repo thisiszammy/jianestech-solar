@@ -1,0 +1,277 @@
+/* ============================================================================
+   login.css — two fields: the panel, and the paper.
+
+   The design budget is spent on one thing: the company seal, at a size where it
+   can actually be read, set on the circuit routing taken from its own shield.
+   Everything on the form side stays deliberately plain so the seal is the only
+   thing competing for attention.
+   ========================================================================== */
+
+.login {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
+    min-height: 100dvh;
+}
+
+/* --- Left: the panel ----------------------------------------------------- */
+.login__panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--s-10);
+    padding: var(--s-10);
+    overflow: hidden;
+    background: var(--panel-dark);
+    color: #fff;
+
+    /* Same edge the sidebar carries. In light mode the two grounds already part
+       company and this does nothing; in dark mode the panel and the paper are
+       close enough that without it the split reads as a rendering seam rather
+       than as two surfaces meeting. */
+    border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.login__field {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* :not() is load-bearing. The field is a flex child like any other, and lifting
+   every child to position:relative would override its absolute positioning
+   (equal specificity, later rule wins) — putting the field back into flow,
+   where it takes its full drawn height and pushes the panel's text off-screen. */
+.login__panel > *:not(.login__field) {
+    position: relative;
+    z-index: 1;
+}
+
+/* --- The lockup ---------------------------------------------------------- */
+.login__lockup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-3);
+}
+
+.login__seal {
+    display: block;
+    width: clamp(104px, 13vw, 156px);
+    height: auto;
+
+    /* The artwork is a physical badge, so it gets the shadow a badge casts on
+       the panel it is fixed to. This is the only drop shadow on the page. */
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));
+}
+
+/* The one line the seal cannot carry: the fund is younger than the mark. Set in
+   the seal's own idiom — Archivo's condensed width, caps, gold — so it reads as
+   part of the badge rather than as a caption under a picture. Caps appear here
+   and in the sidebar wordmark, and nowhere else in the console. */
+.login__division {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+/* The statement. One setting, large, tight — the type treatment is the design,
+   not a delivery vehicle for a tagline. No single word is accented. */
+.login__statement {
+    max-width: 17ch;
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+}
+
+.login__terms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-8);
+    padding-top: var(--s-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.login__term {
+    flex: 1 1 16rem;
+    max-width: 26ch;
+}
+
+.login__term b {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.login__term span {
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Right: the form ----------------------------------------------------- */
+.login__side {
+    display: grid;
+    place-items: center;
+    padding: var(--s-10) var(--s-6);
+    background: var(--paper);
+}
+
+.login__form {
+    width: 100%;
+    max-width: 380px;
+}
+
+.login__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.login__lede {
+    margin-top: var(--s-2);
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+}
+
+.login__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+}
+
+.login__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+/* Same target height as the checkbox beside it, so the two things on this row
+   are equally reachable on a phone rather than one being a 44px control and the
+   other a line of text. */
+.login__recover {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--trace-deep);
+    text-decoration: underline;
+}
+
+/* The way across to /register. Sits above the foot note rather than beside the
+   submit button: it is an alternative to the whole form, not to the button. */
+.login__alt {
+    margin-top: var(--s-5);
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+}
+
+/* Same target height as a control, because on a phone that is what it has to be. */
+.login__alt a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--trace-deep);
+    text-decoration: underline;
+}
+
+.login__foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+}
+
+/* --- The one orchestrated moment ----------------------------------------- */
+/* On load the board fades up, the seal arrives on it, and one run warms to
+   gold. It runs once, nothing loops, and prefers-reduced-motion removes all of
+   it (base.css). Nothing moves — only light changes, which is the right
+   behaviour for a badge that is meant to read as fixed to the panel. */
+.login__field {
+    animation: field-in 900ms var(--ease) both;
+}
+
+.login__lockup {
+    animation: seal-in 700ms var(--ease) 240ms both;
+}
+
+.login__run-lit {
+    animation: run-warm 1400ms var(--ease) 620ms both;
+}
+
+@keyframes field-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes seal-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes run-warm {
+    from { opacity: 0; }
+    to   { opacity: 0.62; }
+}
+
+/* --- Narrow: the panel becomes a header band ----------------------------- */
+@media (max-width: 899px) {
+    .login {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .login__panel {
+        gap: var(--s-5);
+        padding: var(--s-6) var(--s-4);
+
+        /* Stacked, so the edge moves to the bottom with it. */
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    /* Seal and division sit on one line here: stacked, they push the sign-in
+       form below the fold on a phone, and the form is the job on this screen. */
+    .login__lockup {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-4);
+    }
+
+    .login__statement {
+        max-width: none;
+        font-size: var(--text-lg);
+    }
+
+    /* The scheme terms are supporting detail; the form is the job here. */
+    .login__terms {
+        display: none;
+    }
+
+    .login__side {
+        padding: var(--s-8) var(--s-4);
+        place-items: start center;
+    }
+}
+
+@media (min-width: 1280px) {
+    .login__panel {
+        padding: var(--s-12);
+    }
+
+    .login__statement {
+        font-size: var(--text-3xl);
+    }
+}

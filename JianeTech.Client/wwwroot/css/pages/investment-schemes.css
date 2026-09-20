@@ -1,0 +1,310 @@
+/* ============================================================================
+   investment-schemes.css — the investment scheme register and its
+   configuration page.
+
+   The other half of the fund, and deliberately built from the same parts as
+   schemes.css: the ledger for the register, the board for the configuration
+   page, the ruled rail for the figures, the same money and unit fields, the
+   same two-radio basis control. An administrator who has set up an installment
+   scheme should find nothing new to learn here, because nothing about the job
+   is new — only the terms are.
+
+   One object is genuinely new, and it earns its place. An investment scheme's
+   term is not a uniform run of payments the way an installment's is: it has a
+   dead stretch at the head that pays nothing, and — on an immediate scheme — a
+   heavier stretch at the tail where the capital comes back on top of the
+   profit. That shape is the thing an administrator is actually deciding, and no
+   table of figures shows it. So the term is drawn — once, small, above the
+   form's consequences — as .ribbon.
+   ========================================================================== */
+
+/* ============================================================================
+   The register
+   ========================================================================== */
+
+/* Four stacked money-and-meta columns, set the way the ledger sets any stacked
+   cell: the figure that identifies the row in --ink, the one that qualifies it
+   beneath in --ink-4. Tabular figures throughout, so the columns line up down
+   the page. */
+.ledger__structure,
+.ledger__minimum,
+.ledger__horizon,
+.ledger__return {
+    width: 1%;
+    white-space: nowrap;
+    color: var(--ink-4);
+    font-variant-numeric: var(--numeric);
+}
+
+.ledger__structure b,
+.ledger__minimum b,
+.ledger__horizon b,
+.ledger__return b {
+    display: block;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* The structure is a word rather than a figure, so it is set as one — no
+   tabular numerals, and the timing underneath is the part that carries the
+   meaning. */
+.ledger__structure {
+    font-variant-numeric: normal;
+}
+
+/* The term column has the longest qualifier of the four and needs the room;
+   everything else here is short. */
+.ledger__horizon span,
+.ledger__return span {
+    font-size: var(--text-xs);
+}
+
+/* ============================================================================
+   The configuration page
+   ========================================================================== */
+
+/* --- The term ribbon ------------------------------------------------------
+   A scheme's term, drawn to scale. The grace period is hatched because nothing
+   happens in it; the paying stretch is tinted because something does; the tail
+   is tinted harder where the capital joins the profit; and the installation —
+   which is an event rather than a stretch — sits as a stop at whichever end of
+   the term the structure puts it.
+
+   Everything the drawing says is also said in the sentence underneath it, so
+   this is a second telling rather than the only one. That is the rule the
+   charts on this page follow too, and it is what lets the ribbon be decorative
+   enough to be worth looking at. */
+.ribbon {
+    padding: var(--s-5);
+}
+
+.ribbon__track {
+    display: flex;
+    align-items: stretch;
+    height: 52px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+/* The stretches size themselves against each other by month count, so a
+   three-month grace on a five-year term reads as the sliver it is. */
+.ribbon__span {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 var(--s-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Hatched, not tinted. A flat grey band reads as a section of the term; a
+   hatched one reads as a section that is out of service, which is what a grace
+   period is. */
+.ribbon__span--grace {
+    color: var(--ink-4);
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 5px,
+        var(--border-soft) 5px 10px
+    );
+    border-right: 1px solid var(--border);
+}
+
+.ribbon__span--payout {
+    color: var(--trace-deep);
+    background: color-mix(in srgb, var(--trace-deep) 11%, transparent);
+}
+
+/* The stretch where the capital comes back. Same hue as the paying band because
+   it is still the same stream of payments — just heavier, which the deeper wash
+   and the rule between them say without needing a second colour. */
+.ribbon__span--tail {
+    color: var(--trace-deep);
+    background: color-mix(in srgb, var(--trace-deep) 30%, transparent);
+    border-left: 1px solid var(--trace-deep);
+}
+
+/* The installation. A stop rather than a segment, because it is an event and
+   not a stretch of time — it happens on one day at one end of the term. */
+.ribbon__stop {
+    flex: none;
+    width: 10px;
+    background: var(--trace-deep);
+}
+
+.ribbon__stop--installation {
+    background: var(--neutral);
+}
+
+/* The two ends, named. Left and right rather than centred, so the pair reads as
+   the span it labels. */
+.ribbon__ends {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-4);
+    margin-top: var(--s-2);
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+    font-variant-numeric: var(--numeric);
+}
+
+/* The sentence the drawing is a picture of. Same device as the charts'
+   caption, and for the same reason: what is drawn above has no reading order,
+   and this does. */
+.ribbon__caption {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border-soft);
+    max-width: 72ch;
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    color: var(--ink-4);
+}
+
+.ribbon__caption b {
+    color: var(--ink-2);
+    font-weight: 600;
+}
+
+/* The capital return's key, carrying the same wash the tail band does rather
+   than the solid mark used elsewhere — the band is a tint, and a key that were
+   solid would be naming a colour the drawing does not contain. The border is
+   what keeps a 30% wash visible at 9px. */
+.chart-legend__swatch--wash {
+    border: 1px solid var(--trace-deep);
+    background: color-mix(in srgb, var(--trace-deep) 30%, transparent) !important;
+}
+
+/* The grace period's key, carrying the same hatching the band itself does.
+   Scaled down to the 9px swatch, so the stripes are finer than the band's. */
+.chart-legend__swatch--hatched {
+    border: 1px solid var(--border);
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 2px,
+        var(--border-strong) 2px 4px
+    );
+}
+
+/* --- Rail additions ------------------------------------------------------ */
+/* The one rate on this page that is solved rather than stated, and the one an
+   administrator should read last and trust most. Set apart from the two above
+   it the way the effective annual rate is on the installment side. */
+.rail__value--rate {
+    color: var(--trace-deep);
+}
+
+/* A figure the scheme carries but does not pay in cash. Same neutral the
+   installation takes in the charts, so the two agree about what it is. */
+.rail__value--kind {
+    color: var(--neutral);
+}
+
+/* --- The modelled placement ---------------------------------------------- */
+/* The one input on this form that is not part of the scheme. It is marked as
+   such rather than hidden, because the figures underneath are all worked out on
+   it and a reader is owed the knowledge of which number moved them. */
+.terms__aside {
+    grid-column: 1 / -1;
+    margin: calc(var(--s-1) * -1) 0 0;
+    padding: var(--s-3) var(--s-4);
+    border-left: 2px solid var(--border-strong);
+    background: var(--surface-2);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--ink-4);
+}
+
+.terms__aside b {
+    color: var(--ink-2);
+}
+
+/* ============================================================================
+   Responsive
+
+   The register sheds in the order an administrator would give these columns up:
+   the return it can work out from the term, then the minimum, then the
+   structure. What survives to the narrowest width is the scheme's name, its
+   term and whether it is on offer — which is what you scan to find one.
+   ========================================================================== */
+@media (max-width: 1399px) {
+    .ledger__return,
+    .ledger__h-return {
+        display: none;
+    }
+}
+
+@media (max-width: 1199px) {
+    .ledger__minimum,
+    .ledger__h-minimum {
+        display: none;
+    }
+}
+
+@media (max-width: 899px) {
+    .ledger__structure,
+    .ledger__h-structure {
+        display: none;
+    }
+
+    /* Below two columns of form the ribbon has no room to be proportional -
+       a three-month grace on a five-year term comes out under a pixel wide -
+       so it stops trying and states itself in the caption alone. */
+    .ribbon__track {
+        height: 44px;
+    }
+
+    .ribbon__span {
+        font-size: 11px;
+    }
+}
+
+/* Phone: the register takes the two-line shape the other tables take, with the
+   scheme and its status on the first line and the term underneath. The cell
+   qualifier is not optional — `.ledger td { display: block }` in console.css is
+   (0,1,1) and outranks a bare class hide at (0,1,0). */
+@media (max-width: 639px) {
+    .ledger__horizon {
+        grid-area: 2 / 1 / 3 / 3;
+    }
+
+    .ledger td.ledger__horizon {
+        display: block;
+    }
+
+    .ledger td.ledger__structure,
+    .ledger td.ledger__minimum,
+    .ledger td.ledger__return {
+        display: none;
+    }
+
+    .ledger__horizon b,
+    .ledger__horizon span {
+        display: inline;
+    }
+
+    .ledger__horizon span::before {
+        content: ' · ';
+        color: var(--ink-5);
+    }
+
+    .ribbon {
+        padding: var(--s-4);
+    }
+
+    /* At this width no band is wide enough to hold a figure, and the proportional
+       test in the page cannot know that. The caption under the track says all of
+       it in full, so the drawing goes back to being a drawing. */
+    .ribbon__span {
+        font-size: 0;
+    }
+}

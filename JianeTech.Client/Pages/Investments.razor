@@ -1,0 +1,20 @@
+@page "/manage/investments"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Investments · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Investments</h1>
+        <p class="page-head__sub">Capital placed in the fund, and what it returns.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <section class="panel">
+        <UnderConstruction Title="Investments are not in the console yet"
+                           Body="A placement earns a fixed profit interest and carries a solar installation at no cost to the investor. The schemes are already in the database; the console cannot read or change them yet." />
+    </section>
+</div>

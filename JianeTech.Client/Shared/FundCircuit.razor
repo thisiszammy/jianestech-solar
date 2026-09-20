@@ -1,0 +1,169 @@
+@*
+    FundCircuit — the fund, drawn as the thing it is.
+
+    Capital leaves an investor, becomes panels on a household's roof, and comes
+    back as instalments that pay the investor's interest. That is a circuit, and
+    the company's seal already has circuit routing running across its shield —
+    so rather than illustrate the scheme with a photograph of a roof, the landing
+    page draws it as a board, with the seal soldered on at the junction.
+
+    It follows the same rules CircuitField does, because they are what make a
+    drawing read as a board instead of as clip art: segments on 90° and 45°
+    only, and every run ending in a via. The two runs enter the seal side by
+    side, twenty units apart, the way a paired signal is routed.
+
+    Colour carries direction, and the tokens already say which is which. Gold is
+    the brand's — so gold is the capital going out. Cyan is instrumentation — so
+    cyan is what is measured coming back. The chevrons say the same thing again
+    without colour.
+
+    This is the page's one orchestrated moment. The whole board is visible from
+    the first frame, unlit; then light travels out along the gold run and home
+    along the cyan one, once, in the order the money actually moves. Nothing
+    loops, and base.css removes it entirely under prefers-reduced-motion. Every
+    --at below is a start time on that one clock.
+
+    Two routings of the same board, because a wide one cannot be squeezed onto a
+    phone: its labels are SVG text and scale with the drawing, and below about
+    960px they would drop under 12px. CSS shows exactly one, and display:none
+    takes the other out of the accessibility tree along with it.
+
+    The labels in capitals are the board's silkscreen — component names printed
+    on the substrate, set like the lettering round the seal's ring. They are the
+    only capitals on the page besides the wordmark.
+*@
+
+<div class="circuit">
+    <svg class="circuit__board circuit__board--wide"
+         viewBox="0 0 1120 310"
+         role="img"
+         aria-label="@Summary"
+         focusable="false">
+
+        <g class="circuit__base">
+            <path d="M24 70H300L380 150H740L820 70H1096" />
+            <path d="M1096 250H820L740 170H380L300 250H24" />
+            <circle cx="24" cy="70" r="8" />
+            <circle cx="1096" cy="70" r="8" />
+            <circle cx="1096" cy="250" r="8" />
+            <circle cx="24" cy="250" r="8" />
+        </g>
+
+        <path class="circuit__run circuit__run--out" pathLength="1"
+              d="M24 70H300L380 150H740L820 70H1096" />
+        <path class="circuit__run circuit__run--back" pathLength="1"
+              d="M1096 250H820L740 170H380L300 250H24" />
+
+        @* Out: investor to household, left to right. *@
+        <circle class="circuit__mark circuit__mark--out" style="--at: 400ms" cx="24" cy="70" r="8" />
+        <path class="circuit__mark circuit__mark--out" style="--at: 700ms"
+              transform="translate(176 70)" d="M-6 -7 2 0-6 7" />
+        <path class="circuit__mark circuit__mark--out" style="--at: 1500ms"
+              transform="translate(952 70)" d="M-6 -7 2 0-6 7" />
+        <circle class="circuit__mark circuit__mark--out" style="--at: 1750ms" cx="1096" cy="70" r="8" />
+
+        @* Back: household to investor, right to left. *@
+        <circle class="circuit__mark circuit__mark--back" style="--at: 1900ms" cx="1096" cy="250" r="8" />
+        <path class="circuit__mark circuit__mark--back" style="--at: 2200ms"
+              transform="translate(944 250)" d="M6 -7-2 0 6 7" />
+        <path class="circuit__mark circuit__mark--back" style="--at: 3000ms"
+              transform="translate(168 250)" d="M6 -7-2 0 6 7" />
+        <circle class="circuit__mark circuit__mark--back" style="--at: 3250ms" cx="24" cy="250" r="8" />
+
+        @* The disc is what makes the runs pass *under* the badge rather than
+           through it: the artwork's corners are transparent, and without a
+           ground of its own the traces would show in them. It is a few units
+           smaller than the badge on purpose. Any wider and it shows as a dark
+           collar with the runs stopping short of it, which reads as four loose
+           ends rather than as one board. *@
+        <circle class="circuit__seat" cx="560" cy="160" r="64" />
+        <image class="circuit__seal" href="img/jte-seal.png"
+               x="490" y="88.4" width="140" height="143.1" />
+
+        <text class="circuit__label" x="44" y="46">Capital placed</text>
+        <text class="circuit__label" x="1076" y="46" text-anchor="end">Solar fitted now</text>
+        <text class="circuit__label" x="1076" y="290" text-anchor="end">Instalments on agreed terms</text>
+        <text class="circuit__label" x="44" y="290">Fixed interest, and a system of their own</text>
+
+        <text class="circuit__silk" x="24" y="165">Investor</text>
+        <text class="circuit__silk" x="1096" y="165" text-anchor="end">Household</text>
+        <text class="circuit__silk" x="560" y="274" text-anchor="middle">The fund</text>
+    </svg>
+
+    <svg class="circuit__board circuit__board--tall"
+         viewBox="0 0 360 620"
+         role="img"
+         aria-label="@Summary"
+         focusable="false">
+
+        <g class="circuit__base">
+            <path d="M36 56V136L170 270V350L36 484V564" />
+            <path d="M324 564V484L190 350V270L324 136V56" />
+            <circle cx="36" cy="56" r="8" />
+            <circle cx="36" cy="564" r="8" />
+            <circle cx="324" cy="564" r="8" />
+            <circle cx="324" cy="56" r="8" />
+        </g>
+
+        <path class="circuit__run circuit__run--out" pathLength="1"
+              d="M36 56V136L170 270V350L36 484V564" />
+        <path class="circuit__run circuit__run--back" pathLength="1"
+              d="M324 564V484L190 350V270L324 136V56" />
+
+        @* Out: investor to household, down the left. *@
+        <circle class="circuit__mark circuit__mark--out" style="--at: 400ms" cx="36" cy="56" r="8" />
+        <path class="circuit__mark circuit__mark--out" style="--at: 650ms"
+              transform="translate(36 104)" d="M-7 -6 0 2 7 -6" />
+        <path class="circuit__mark circuit__mark--out" style="--at: 1550ms"
+              transform="translate(36 528)" d="M-7 -6 0 2 7 -6" />
+        <circle class="circuit__mark circuit__mark--out" style="--at: 1750ms" cx="36" cy="564" r="8" />
+
+        @* Back: household to investor, up the right. *@
+        <circle class="circuit__mark circuit__mark--back" style="--at: 1900ms" cx="324" cy="564" r="8" />
+        <path class="circuit__mark circuit__mark--back" style="--at: 2150ms"
+              transform="translate(324 516)" d="M-7 6 0 -2 7 6" />
+        <path class="circuit__mark circuit__mark--back" style="--at: 3050ms"
+              transform="translate(324 92)" d="M-7 6 0 -2 7 6" />
+        <circle class="circuit__mark circuit__mark--back" style="--at: 3250ms" cx="324" cy="56" r="8" />
+
+        <circle class="circuit__seat" cx="180" cy="310" r="57" />
+        <image class="circuit__seal" href="img/jte-seal.png"
+               x="118" y="246.6" width="124" height="126.8" />
+
+        <text class="circuit__label" x="56" y="88">
+            <tspan x="56">Capital</tspan>
+            <tspan x="56" dy="21">placed</tspan>
+        </text>
+        <text class="circuit__label" x="304" y="80" text-anchor="end">
+            <tspan x="304">Fixed interest,</tspan>
+            <tspan x="304" dy="21">and a system</tspan>
+            <tspan x="304" dy="21">of their own</tspan>
+        </text>
+        <text class="circuit__label" x="56" y="520">
+            <tspan x="56">Solar fitted</tspan>
+            <tspan x="56" dy="21">now</tspan>
+        </text>
+        <text class="circuit__label" x="304" y="500" text-anchor="end">
+            <tspan x="304">Instalments</tspan>
+            <tspan x="304" dy="21">on agreed</tspan>
+            <tspan x="304" dy="21">terms</tspan>
+        </text>
+
+        <text class="circuit__silk" x="180" y="30" text-anchor="middle">Investor</text>
+        <text class="circuit__silk" x="180" y="604" text-anchor="middle">Household</text>
+        <text class="circuit__silk" x="180" y="408" text-anchor="middle">The fund</text>
+    </svg>
+</div>
+
+@code {
+    /// <summary>
+    /// The drawing in one sentence, for anyone who cannot see it. It names the
+    /// four movements in the order the light travels them.
+    /// </summary>
+    private const string Summary =
+        "How the fund circulates. An investor places capital with the fund. "
+        + "The fund fits solar on a household's roof. "
+        + "The household pays fixed monthly instalments on agreed terms. "
+        + "Those payments return to the investor as a fixed interest, "
+        + "along with a solar system of their own.";
+}

@@ -1,0 +1,118 @@
+@using JianeTech.Client.Auth.Models
+
+@*
+    ActivityLedger — the audit trail, set as a book of record.
+
+    Every row is one audited step of one service call. Status is carried by a
+    dot *and* its event label, never by colour alone.
+
+    The row number counts from StartIndex, which the caller sets to the first
+    row of the page it is showing. That makes "row 61" the same row whichever
+    page you are on, which is the only reading of a number in a paged ledger
+    that is any use.
+*@
+
+@if (Loading)
+{
+    <div style="padding: var(--s-4) var(--s-5)">
+        @for (var i = 0; i < SkeletonRows; i++)
+        {
+            <div class="skeleton"
+                 style="height: 14px; margin: var(--s-4) 0; width: @(SkeletonWidths[i % SkeletonWidths.Length])"></div>
+        }
+    </div>
+}
+else if (Entries.Count == 0)
+{
+    <div class="empty">
+        <p class="empty__title">@EmptyTitle</p>
+        <p class="empty__body">@EmptyBody</p>
+    </div>
+}
+else
+{
+    <div class="ledger-scroll">
+    <table class="ledger">
+        <thead>
+            <tr>
+                <th class="ledger__index" scope="col">#</th>
+                <th scope="col">When</th>
+                <th scope="col">Event</th>
+                <th scope="col">Detail</th>
+                <th class="ledger__h-who" scope="col">Account</th>
+                @if (ShowOrigin)
+                {
+                    <th class="ledger__h-ip" scope="col">Origin</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (entry, offset) in Entries.Select((e, i) => (e, i)))
+            {
+                <tr>
+                    <td class="ledger__index">@(StartIndex + offset)</td>
+                    <td class="ledger__time">
+                        <b>@entry.ExecutedOn.ToString("HH:mm:ss")</b>
+                        @entry.ExecutedOn.ToString("d MMM yyyy")
+                    </td>
+                    <td class="ledger__event">
+                        <span class="ledger__event-inner">
+                            <span class="dot dot--@entry.Status"></span>
+                            @entry.ActivityLabel
+                        </span>
+                    </td>
+                    <td class="ledger__detail">@entry.Detail</td>
+                    <td class="ledger__who">
+                        @if (entry.ExecutedByName is { Length: > 0 })
+                        {
+                            <b>@entry.ExecutedByName</b>
+                            @entry.ExecutedByEmail
+                        }
+                        else
+                        {
+                            <span style="color: var(--ink-4)">Unidentified</span>
+                        }
+                    </td>
+                    @if (ShowOrigin)
+                    {
+                        <td class="ledger__ip">@entry.IpAddress</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public List<ActivityLogEntry> Entries { get; set; } = [];
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    /// <summary>The number the first visible row carries. 1 on an unpaged list.</summary>
+    [Parameter]
+    public int StartIndex { get; set; } = 1;
+
+    /// <summary>
+    /// The originating IP. Off in the dashboard's preview, which sits in a narrow column
+    /// and answers "who is in the console and what have they touched" — a question the
+    /// address is not part of. The full log, which has the width for it, keeps it.
+    /// </summary>
+    [Parameter]
+    public bool ShowOrigin { get; set; } = true;
+
+    [Parameter]
+    public int SkeletonRows { get; set; } = 6;
+
+    [Parameter]
+    public string EmptyTitle { get; set; } = "Nothing recorded yet";
+
+    [Parameter]
+    public string EmptyBody { get; set; } =
+        "Every action taken in the console is written here — who did it, when, and from where.";
+
+    /// <summary>Varied widths so the placeholder reads as text, not as bars.</summary>
+    private static readonly string[] SkeletonWidths = ["62%", "88%", "45%", "74%", "56%", "80%"];
+}

@@ -1,0 +1,160 @@
+@*
+    CircuitField — the sign-in panel's ground.
+
+    The seal's shield is not a flat navy field: it has printed-circuit routing
+    running across it, which is the "Tech" half of the company drawn as an
+    object. This is that, enlarged to fill the panel, so the background and the
+    seal in front of it are the same drawing at two scales.
+
+    It is laid out the way a board is actually routed — segments on 90° and 45°
+    only, every run terminating in a via — rather than as a "digital" texture.
+    That constraint is the whole reason it reads as a board and not as clip art.
+
+    One run is gold. It is the single warm thing on a cold field, and it is the
+    one moment of motion on the page: the field fades up on load and that run
+    warms behind it. Everything else here is deliberately quiet, because the
+    seal and the statement are what should be read.
+*@
+
+<svg class="login__field"
+     viewBox="0 0 @Width @Height"
+     preserveAspectRatio="xMidYMid slice"
+     role="presentation"
+     aria-hidden="true"
+     focusable="false">
+
+    @foreach (var run in Runs)
+    {
+        <g stroke="var(--trace)" opacity="0.2">
+            <polyline points="@run.Points"
+                      fill="none"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+
+            @* Vias: a run that stops without one looks like a broken trace. *@
+            <circle cx="@run.FromX" cy="@run.FromY" r="3.6"
+                    fill="var(--panel-dark)" stroke-width="1.7" />
+            <circle cx="@run.ToX" cy="@run.ToY" r="3.6"
+                    fill="var(--panel-dark)" stroke-width="1.7" />
+        </g>
+    }
+
+    @* The lit run is placed rather than picked. It leaves the board under the
+       seal and travels out across the open middle of the panel — so the seal
+       reads as wired into the thing behind it — and it is routed to stay clear
+       of the statement, which owns that part of the field. *@
+    <g class="login__run-lit" stroke="var(--gold)" opacity="0.62">
+        <polyline points="@LitPoints"
+                  fill="none"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+        <circle cx="@(LitRoute[0].X * Pitch)" cy="@(LitRoute[0].Y * Pitch)" r="4.6"
+                fill="var(--panel-dark)" stroke-width="2.4" />
+        <circle cx="@(LitRoute[^1].X * Pitch)" cy="@(LitRoute[^1].Y * Pitch)" r="4.6"
+                fill="var(--panel-dark)" stroke-width="2.4" />
+    </g>
+</svg>
+
+@code {
+    private const int Pitch = 22;
+    private const int Cols = 36;
+    private const int Rows = 46;
+    private const int Width = Cols * Pitch;
+    private const int Height = Rows * Pitch;
+
+    private const int RunCount = 30;
+
+    /// <summary>
+    /// The gold run, in grid nodes. Right, down on the diagonal, right, back up
+    /// — a legal route on this board, and one that threads the clear band
+    /// between the seal above it and the statement below.
+    /// </summary>
+    private static readonly (int X, int Y)[] LitRoute =
+    [
+        (6, 13), (13, 13), (18, 18), (26, 18), (31, 13)
+    ];
+
+    private static readonly string LitPoints =
+        string.Join(' ', LitRoute.Select(n => $"{n.X * Pitch},{n.Y * Pitch}"));
+
+    /// <summary>
+    /// Fixed seed. The field is a drawing, not a random texture — it has to be
+    /// the same on every load, and the same for every person looking at it.
+    /// </summary>
+    private const int Seed = 2014;
+
+    private sealed record Run(string Points, int FromX, int FromY, int ToX, int ToY);
+
+    /// <summary>Eight-way routing: orthogonals and diagonals, nothing else.</summary>
+    private static readonly (int X, int Y)[] Dirs =
+    [
+        (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)
+    ];
+
+    /// <summary>Laid out once for the app's lifetime rather than on every render.</summary>
+    private static readonly List<Run> Runs = Route();
+
+    private static List<Run> Route()
+    {
+        var rng = new Random(Seed);
+        var runs = new List<Run>(RunCount);
+
+        for (var i = 0; i < RunCount; i++)
+        {
+            var cx = rng.Next(2, Cols - 1);
+            var cy = rng.Next(2, Rows - 1);
+            var dir = rng.Next(Dirs.Length);
+
+            var nodes = new List<(int X, int Y)> { (cx, cy) };
+
+            var segments = rng.Next(3, 6);
+            for (var s = 0; s < segments; s++)
+            {
+                var length = rng.Next(2, 7);
+
+                // Turn rather than run off the board. Four tries is enough to
+                // find a legal heading from any node; if none exists the run
+                // simply ends short, which is also what a real trace does.
+                var placed = false;
+                for (var attempt = 0; attempt < 4 && !placed; attempt++)
+                {
+                    var (dx, dy) = Dirs[dir];
+                    var nx = cx + dx * length;
+                    var ny = cy + dy * length;
+
+                    if (nx is >= 1 and <= Cols - 1 && ny is >= 1 and <= Rows - 1)
+                    {
+                        cx = nx;
+                        cy = ny;
+                        nodes.Add((cx, cy));
+                        placed = true;
+                    }
+                    else
+                    {
+                        dir = (dir + 2) % Dirs.Length;
+                    }
+                }
+
+                if (!placed) break;
+
+                // A board turns by 45°, never by an arbitrary angle.
+                dir = (dir + (rng.Next(2) == 0 ? 1 : Dirs.Length - 1)) % Dirs.Length;
+            }
+
+            if (nodes.Count < 2) continue;
+
+            var points = string.Join(' ', nodes.Select(n => $"{n.X * Pitch},{n.Y * Pitch}"));
+            var first = nodes[0];
+            var last = nodes[^1];
+
+            runs.Add(new Run(
+                points,
+                first.X * Pitch, first.Y * Pitch,
+                last.X * Pitch, last.Y * Pitch));
+        }
+
+        return runs;
+    }
+}

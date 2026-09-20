@@ -1,0 +1,486 @@
+@page "/register"
+@layout BareLayout
+@using System.ComponentModel.DataAnnotations
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@inject FundApiClient Api
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*
+    Register — the public front door's application slip, and the only page in
+    this app where a stranger writes themselves into the fund's register.
+
+    The form is the invite-a-user form from Users.razor: the same six fields,
+    the same limits, the same absence of a password. That is not a coincidence
+    to be tidied away later — an account opened here and one opened by an
+    administrator are the same kind of row, reach the same activation link and
+    end up at the same Pending status. Only two things differ, and both are
+    security rather than styling:
+
+      - There is no Role picker. A public form cannot offer "Administrator",
+        and the server does not read a role off this request at all. The slot
+        it leaves is spent on the one question the fund actually wants from a
+        stranger: which side of the fund they came for.
+      - A taken email address is not reported as one. The endpoint answers
+        every submission the same sentence — see AccountApiController.Register
+        for why — so this page cannot be used to test which addresses belong to
+        the fund's investors and customers.
+
+    Why it does not reuse AccountShell like the three other signed-out screens:
+    the panel here has a job theirs does not. Signing in is over the moment the
+    button is pressed; this is not, because a link has to arrive before anybody
+    has an account they can use. So the panel carries the three steps as a
+    routed run — the seal's own idiom, the same one FundCircuit and
+    CircuitField are drawn in — and it is live: submitting advances the lit
+    node rather than replaying a page-load animation. The one orchestrated
+    moment on load belongs to the sign-in page and stays there.
+
+    The form column is also wider than AccountShell's 380px, because six fields
+    in one column is a scroll on a laptop.
+*@
+
+<PageTitle>Open an account · Jiane's Tech Solar Fund</PageTitle>
+
+<div class="register">
+    <section class="register__panel">
+        @* The seal carries the company name and the founding year already, so
+           nothing here repeats them. The only line it cannot carry is the
+           division, because the fund is younger than the mark. *@
+        <div class="register__lockup">
+            <img class="register__seal"
+                 src="img/jte-seal.png"
+                 width="313"
+                 height="320"
+                 alt="Jiane's Tech Enterprise, established 2014"
+                 fetchpriority="high" />
+            <p class="register__division">Solar Fund</p>
+        </div>
+
+        <div class="register__say">
+            <h1 class="register__statement">@Statement</h1>
+
+            @* A real sequence — each step is gated by the one before it, and
+               nobody can do the third without the second — which is the only
+               thing that earns a numbered treatment. Drawn as a run rather
+               than as 01/02/03 because this console already has a vocabulary
+               for "current goes here": a trace, with the live node lit. *@
+            <ol class="run" aria-label="Opening an account, in three steps">
+                @for (var i = 0; i < Steps.Length; i++)
+                {
+                    <li class="run__step run__step--@StepState(i)"
+                        aria-current="@(StepState(i) == "live" ? "step" : null)">
+                        <span class="run__node" aria-hidden="true"></span>
+                        <span class="run__text">
+                            <b>@Steps[i].Title</b>
+                            <span>@Steps[i].Body</span>
+                        </span>
+                    </li>
+                }
+            </ol>
+
+            @* The question a stranger actually has before they type their name
+               into anything. No rate, no minimum, no term appears on this page
+               — the same rule the landing page keeps. *@
+            <p class="register__panel-note">
+                Opening an account commits you to nothing. Terms are agreed with you
+                before any capital is placed or any panel goes on your roof.
+            </p>
+        </div>
+    </section>
+
+    <section class="register__side">
+        <div class="register__form">
+            @* h2, not h1: the panel's statement is this page's heading, so a
+               second h1 here would leave the document with two. *@
+            <h2 class="register__title">@Title</h2>
+            <p class="register__lede">@Lede</p>
+
+            @if (_state is State.Done or State.MailFailed)
+            {
+                <div class="register__state" role="status">
+                    <p class="register__state-title">
+                        <span class="dot dot--@(_state is State.Done ? "success" : "warn")"></span>
+                        @(_state is State.Done ? "Check your email" : "Your account is open, the email is not")
+                    </p>
+
+                    @* The server's own sentence. On the ordinary path it is
+                       deliberately conditional — it will not confirm whether
+                       the address was new — so this page must not add a
+                       confidence to it that the API withheld. *@
+                    <p class="register__state-body">@_notice</p>
+
+                    @if (_state is State.Done)
+                    {
+                        <p class="register__state-body">
+                            The link works once and expires in seven days. If nothing arrives,
+                            check the spam folder before trying again.
+                        </p>
+                    }
+
+                    <div class="register__state-actions">
+                        <a class="btn btn--primary" href="login">Sign in</a>
+                        <a class="btn btn--ghost" href="">Back to the fund</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @* novalidate: the browser's own bubbles would pre-empt the styled
+                   messages below and put the first failure somewhere the form
+                   cannot reach. The required attributes stay, because they are
+                   what a screen reader reads. *@
+                <EditForm Model="_model"
+                          OnValidSubmit="SubmitAsync"
+                          OnInvalidSubmit="() => _focusInvalid = true"
+                          FormName="register"
+                          novalidate>
+                    <DataAnnotationsValidator />
+
+                    <div class="register__fields" @ref="_fields">
+                        @if (_error is { Length: > 0 })
+                        {
+                            @* role=alert so the refusal is announced, not just shown. *@
+                            <div class="alert alert--error" role="alert">
+                                <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                                <span>@_error</span>
+                            </div>
+                        }
+
+                        <div class="register__grid">
+                            <div class="field">
+                                <label class="field__label" for="rg-first">
+                                    First name<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <InputText class="field__input" id="rg-first" autofocus required
+                                           autocomplete="given-name" disabled="@_busy"
+                                           @bind-Value="_model.FirstName" />
+                                <div class="field__note">
+                                    <ValidationMessage class="field__error" For="() => _model.FirstName" />
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="rg-last">
+                                    Last name<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <InputText class="field__input" id="rg-last" required
+                                           autocomplete="family-name" disabled="@_busy"
+                                           @bind-Value="_model.LastName" />
+                                <div class="field__note">
+                                    <ValidationMessage class="field__error" For="() => _model.LastName" />
+                                </div>
+                            </div>
+
+                            <div class="field field--wide">
+                                <label class="field__label" for="rg-email">
+                                    Email<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <InputText class="field__input" id="rg-email" type="email" required
+                                           autocomplete="email" spellcheck="false" autocapitalize="none"
+                                           disabled="@_busy"
+                                           @bind-Value="_model.Email" />
+                                <div class="field__note">
+                                    <ValidationMessage class="field__error" For="() => _model.Email" />
+                                    <p class="field__hint">Your link goes here, so it has to be one you can open.</p>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="rg-username">
+                                    Username<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <InputText class="field__input" id="rg-username" required
+                                           autocomplete="username" spellcheck="false" autocapitalize="none"
+                                           disabled="@_busy"
+                                           @bind-Value="_model.Username" />
+                                <div class="field__note">
+                                    <ValidationMessage class="field__error" For="() => _model.Username" />
+                                    <p class="field__hint">What you will sign in with.</p>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="rg-phone">Mobile number</label>
+                                @* inputmode=numeric brings up the right keypad without the
+                                   spinner and locale parsing a number input drags along. *@
+                                <InputText class="field__input" id="rg-phone" type="tel"
+                                           inputmode="numeric" placeholder="09XXXXXXXXX"
+                                           autocomplete="tel-national" disabled="@_busy"
+                                           @bind-Value="_model.PhoneNumber" />
+                                <div class="field__note">
+                                    <ValidationMessage class="field__error" For="() => _model.PhoneNumber" />
+                                    <p class="field__hint">Optional. How the fund reaches you about a survey.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        @* The slot the Role picker occupies on the console's form.
+                           A public page cannot ask which kind of account somebody
+                           would like, so it asks the thing the fund does want to
+                           know — and the answer goes to the account's audit row,
+                           not to a column, because wanting to invest is not the
+                           same as having invested. *@
+                        <fieldset class="register__choice" disabled="@_busy">
+                            <legend class="field__label">What brings you to the fund?</legend>
+                            <p class="field__hint" id="rg-interest-hint">
+                                So whoever follows up knows which side of the fund to talk about.
+                                You are not choosing anything binding.
+                            </p>
+
+                            @foreach (var option in Interests)
+                            {
+                                <label class="choice">
+                                    <input type="radio"
+                                           name="interest"
+                                           value="@option.Value"
+                                           aria-describedby="rg-interest-hint"
+                                           checked="@(_model.Interest == option.Value)"
+                                           @onchange="() => _model.Interest = option.Value" />
+                                    <span class="choice__text">
+                                        <b>@option.Label</b>
+                                        <span>@option.Body</span>
+                                    </span>
+                                </label>
+                            }
+                        </fieldset>
+
+                        <button class="btn btn--primary btn--block" type="submit" disabled="@_busy">
+                            @if (_busy)
+                            {
+                                <span class="btn__spinner" aria-hidden="true"></span>
+                                <span>Opening</span>
+                            }
+                            else
+                            {
+                                <span>Open my account</span>
+                            }
+                        </button>
+
+                        <p class="register__alt">
+                            Already with the fund? <a href="login">Sign in</a>
+                        </p>
+                    </div>
+                </EditForm>
+
+                @* Repeats the panel's commitment line, which is what lets the
+                   phone breakpoint drop it from the panel — it is the most
+                   reassuring sentence on the page and should not be the one
+                   that falls off a small screen. *@
+                <p class="register__foot">
+                    Opening an account commits you to nothing: terms are agreed with you
+                    before any capital is placed or any panel goes on your roof. Like every
+                    sign-in, it is written to the fund's activity log.
+                </p>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private enum State { Form, Done, MailFailed }
+
+    private readonly RegistrationModel _model = new();
+
+    private State _state = State.Form;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    /// <summary>Set by a rejected submit; acted on once the render that stamps the invalid classes has landed.</summary>
+    private bool _focusInvalid;
+
+    private ElementReference _fields;
+    private IJSObjectReference? _module;
+
+    /// <summary>
+    /// The panel's headline, which has to keep pace with what has actually
+    /// happened. "The register starts with your name" stops being true the
+    /// moment the name is on it.
+    /// </summary>
+    private string Statement => _state switch
+    {
+        State.Done => "You are on the register.",
+        State.MailFailed => "You are on the register.",
+        _ => "The register starts with your name.",
+    };
+
+    private string Title => _state switch
+    {
+        State.Done => "Almost there",
+        State.MailFailed => "One thing went wrong",
+        _ => "Open an account",
+    };
+
+    private string Lede => _state switch
+    {
+        State.Done => "Your account exists. It needs a password before you can sign in.",
+        State.MailFailed => "The account is real. The email that carries your link is not.",
+        _ => "Tell us who you are. You choose your own password from a link we email — "
+             + "nobody at the fund ever sees it.",
+    };
+
+    /// <summary>
+    /// Where the run is lit. Step 1 stays live on a failed mail rather than
+    /// gaining a state of its own: the link still has to reach them, it just
+    /// has not yet, and the column beside it says so in words.
+    /// </summary>
+    private string StepState(int index)
+    {
+        var live = _state is State.Form ? 0 : 1;
+
+        return index < live ? "done"
+             : index == live ? "live"
+             : "ahead";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Somebody arriving here with a live session already has an account —
+        // offering them a second one would be answering a question they did
+        // not ask. Same guard the sign-in page carries, for the same reason.
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            Nav.NavigateTo("manage", replace: true);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Deferred to here rather than done inside OnInvalidSubmit: the invalid classes
+        // are stamped by the render that follows the handler, so there is nothing to find
+        // until it has run.
+        if (!_focusInvalid)
+        {
+            return;
+        }
+
+        _focusInvalid = false;
+
+        // dialog.js owns this because the console's dialogs needed it first, but the
+        // function itself only wants a root element to search — nothing in it is about
+        // a <dialog>. Importing the module here beats a second one holding one export.
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/dialog.js");
+        await _module.InvokeVoidAsync("focusFirstInvalid", _fields);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_busy) return;
+
+        _busy = true;
+        _error = null;
+
+        var response = await Api.RegisterAccountAsync(new RegisterAccountRequest
+        {
+            FirstName = _model.FirstName,
+            LastName = _model.LastName,
+            Username = _model.Username,
+            Email = _model.Email,
+            PhoneNumber = _model.PhoneNumber,
+            Interest = _model.Interest,
+        });
+
+        _busy = false;
+
+        if (response.Code == 200)
+        {
+            // The server's own sentence, verbatim. On the ordinary path it is
+            // careful not to say whether the address was new, and restating it
+            // here in this page's words would undo exactly that care.
+            _notice = response.Message;
+
+            // A 200 carrying a result at all means the one outcome the endpoint
+            // does report plainly: the account was created and its mail did not
+            // leave. Everything else answers with no data.
+            _state = response.Data is { EmailSent: false } ? State.MailFailed : State.Done;
+            return;
+        }
+
+        // A 400 from the validator (a field, or a username already taken), a 429
+        // from the limiter, or an unreachable API — all of them phrased for a
+        // signed-out reader already.
+        _error = response.Message;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try { await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    // --- Content -------------------------------------------------------------
+
+    private sealed record Step(string Title, string Body);
+
+    private sealed record Interest(int Value, string Label, string Body);
+
+    /// <summary>
+    /// The three steps, in the order they happen. The verbs are the ones the
+    /// submit button and the confirmation use, so the page names each act the
+    /// same way wherever it mentions it.
+    /// </summary>
+    private static readonly Step[] Steps =
+    [
+        new("Tell us who you are", "The six fields beside this, four of which are required."),
+        new("Open the link we email", "It works once, and expires in seven days."),
+        new("Choose your password", "You set it yourself. Nobody at the fund ever sees it."),
+    ];
+
+    /// <summary>
+    /// Mirrors <c>RegistrationInterestEnum</c> — 1 Investing, 2 Installation,
+    /// 0 Unspecified. Restated rather than shared because the client does not
+    /// reference the data project; keep the two in step.
+    /// </summary>
+    private static readonly Interest[] Interests =
+    [
+        new(1, "I want to place capital",
+            "A fixed profit interest on what you place, and a system fitted on your own roof at no cost."),
+        new(2, "I want solar on my roof",
+            "Fitted now, paid off in fixed monthly instalments on a scheme matched to your electricity bill."),
+        new(0, "I am still deciding",
+            "Open an account anyway. Somebody will talk you through both."),
+    ];
+
+    /// <summary>
+    /// The limits here are the ones <c>UserValidator</c> enforces, which are in turn the
+    /// column widths of dbo.Users. They are restated rather than shared because the client
+    /// does not reference the data project — keep the three in step. Same set as
+    /// <c>UserFormDialog</c>, which is the console's copy of this form.
+    /// </summary>
+    private sealed class RegistrationModel
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(70, ErrorMessage = "First name must be 70 characters or fewer.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(70, ErrorMessage = "Last name must be 70 characters or fewer.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Username is required.")]
+        [StringLength(50, ErrorMessage = "Username must be 50 characters or fewer.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Email must be a valid address.")]
+        [StringLength(60, ErrorMessage = "Email must be 60 characters or fewer.")]
+        public string Email { get; set; } = string.Empty;
+
+        // dbo.Users.PhoneNumber is nvarchar(11) for Philippine mobile numbers, so the
+        // pattern is the column's reason for being that width.
+        [RegularExpression(@"^09\d{9}$", ErrorMessage = "Enter an 11-digit mobile number, e.g. 09171234567.")]
+        public string? PhoneNumber { get; set; }
+
+        /// <summary>A <c>RegistrationInterestEnum</c> value; 0 is "not stated".</summary>
+        public int Interest { get; set; }
+    }
+}

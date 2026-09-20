@@ -1,0 +1,20 @@
+@page "/manage/installments"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Installments · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Installments</h1>
+        <p class="page-head__sub">Terms households pay their installation off on.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <section class="panel">
+        <UnderConstruction Title="Installments are not in the console yet"
+                           Body="An installment is a household on a scheme — the principal, the down payment and the monthly amount it was signed on. The tables exist and hold whatever has already been recorded; the console cannot read or change them yet." />
+    </section>
+</div>

@@ -1,0 +1,9 @@
+This folder is intentionally empty.
+
+JianeTech.Api serves the Blazor console (JianeTech.Client) from this host, and the
+client's own wwwroot is composed into this one through static web assets at build
+time. ASP.NET Core still needs the folder to exist to resolve a web root at all —
+without it, startup warns "The WebRootPath was not found" and static files are served
+from a null provider.
+
+Put nothing here: assets belong in JianeTech.Client/wwwroot.

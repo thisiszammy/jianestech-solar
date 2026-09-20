@@ -1,0 +1,199 @@
+@page "/login"
+@layout BareLayout
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@inject FundApiClient Api
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Sign in · Jiane's Tech Solar Fund</PageTitle>
+
+<div class="login">
+    <section class="login__panel">
+        <CircuitField />
+
+        @* The seal carries the company name and the founding year already, so
+           nothing here repeats them. The only line it cannot carry is the
+           division, because the fund is younger than the mark. *@
+        <div class="login__lockup">
+            <img class="login__seal"
+                 src="img/jte-seal.png"
+                 width="313"
+                 height="320"
+                 alt="Jiane's Tech Enterprise, established 2014"
+                 fetchpriority="high" />
+            <p class="login__division">Solar Fund</p>
+        </div>
+
+        <h1 class="login__statement">Capital that comes back as power.</h1>
+
+        <div class="login__terms">
+            <div class="login__term">
+                <b>For investors</b>
+                <span>Fixed profit interest on your placement, plus installation at no cost.</span>
+            </div>
+            <div class="login__term">
+                <b>For households</b>
+                <span>Solar fitted now, paid off in fixed monthly instalments.</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="login__side">
+        <div class="login__form">
+            <h2 class="login__title">Sign in</h2>
+            <p class="login__lede">Operations console for fund administrators.</p>
+
+            <EditForm Model="_model" OnValidSubmit="SubmitAsync" FormName="signin">
+                <DataAnnotationsValidator />
+
+                <div class="login__fields">
+                    @if (_error is { Length: > 0 })
+                    {
+                        @* role=alert so the failure is announced, not just shown. *@
+                        <div class="alert alert--error" role="alert">
+                            <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                            <span>@_error</span>
+                        </div>
+                    }
+
+                    <div class="field">
+                        <label class="field__label" for="username">Username</label>
+                        <input class="field__input"
+                               id="username"
+                               name="username"
+                               type="text"
+                               autocomplete="username"
+                               spellcheck="false"
+                               autocapitalize="none"
+                               aria-invalid="@(_error is { Length: > 0 })"
+                               disabled="@_busy"
+                               @bind="_model.Username"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="password">Password</label>
+                        <div class="field__wrap">
+                            <input class="field__input"
+                                   id="password"
+                                   name="password"
+                                   type="@(_reveal ? "text" : "password")"
+                                   autocomplete="current-password"
+                                   aria-invalid="@(_error is { Length: > 0 })"
+                                   disabled="@_busy"
+                                   @bind="_model.Password"
+                                   @bind:event="oninput" />
+                            <button class="field__toggle"
+                                    type="button"
+                                    aria-label="@(_reveal ? "Hide password" : "Show password")"
+                                    aria-pressed="@_reveal"
+                                    @onclick="() => _reveal = !_reveal">
+                                <Icon Name="@(_reveal ? "eye-off" : "eye")" Size="18" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login__row">
+                        <label class="check">
+                            <input type="checkbox" disabled="@_busy" @bind="_model.RememberMe" />
+                            Keep me signed in
+                        </label>
+
+                        @* Worded as the thing it does rather than as the state
+                           you are in: "Forgot password?" describes the reader,
+                           and this describes the button. *@
+                        <a class="login__recover" href="forgot-password">Reset your password</a>
+                    </div>
+
+                    <button class="btn btn--primary btn--block" type="submit" disabled="@_busy">
+                        @if (_busy)
+                        {
+                            <span class="btn__spinner" aria-hidden="true"></span>
+                            <span>Signing in</span>
+                        }
+                        else
+                        {
+                            <span>Sign in</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+
+            @* The other door. The landing page's call now opens an account
+               rather than pointing here, so this page has to carry the way
+               across — somebody who has never had an account can arrive at a
+               sign-in form by habit, by bookmark, or by following a link that
+               turned them away. *@
+            <p class="login__alt">
+                New to the fund? <a href="register">Open an account</a>
+            </p>
+
+            <p class="login__foot">
+                Every sign-in, accepted or refused, is written to the fund's activity log.
+            </p>
+        </div>
+    </section>
+</div>
+
+@code {
+    private readonly SignInModel _model = new();
+
+    private bool _busy;
+    private bool _reveal;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Someone arriving here with a live session should not have to sign in
+        // again — the cookies may still be good from a previous visit.
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            Nav.NavigateTo("manage", replace: true);
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_busy) return;
+
+        _busy = true;
+        _error = null;
+
+        var response = await Api.AuthenticateAsync(
+            _model.Username, _model.Password, _model.RememberMe);
+
+        if (response.Code == 200 && response.Data?.User is not null)
+        {
+            // Adopt the identity the response carried; no second round trip.
+            (AuthState as CookieAuthenticationStateProvider)?.SignIn(response.Data.User);
+
+            // Straight to the console they have. /manage is administrators-only
+            // since accounts stopped being invitation-only, and sending everyone
+            // there would put a standard user through a refusal and a redirect
+            // on the way to their own page — visible as a flicker, and a poor
+            // first thing to happen after signing in.
+            Nav.NavigateTo(
+                response.Data.User.UserType == 0 ? "manage" : "manage/account",
+                replace: true);
+            return;
+        }
+
+        // The API already words these for a signed-out reader — a wrong password
+        // and an unknown username get the same sentence on purpose, so the form
+        // cannot be used to find out which usernames exist.
+        _error = response.Message;
+        _busy = false;
+    }
+
+    private sealed class SignInModel
+    {
+        public string Username { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}

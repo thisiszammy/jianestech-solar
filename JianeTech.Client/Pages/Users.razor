@@ -1,0 +1,710 @@
+@page "/manage/users"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+@implements IDisposable
+
+<PageTitle>Users · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Users</h1>
+        <p class="page-head__sub">Everyone who can sign in to the fund console.</p>
+    </div>
+    <div class="page-head__actions">
+        <button class="btn btn--primary" type="button" @onclick="OpenDialog">
+            <Icon Name="plus" Size="16" />
+            Invite user
+        </button>
+    </div>
+</header>
+
+<div class="page-body">
+    <div class="filters">
+        <div class="filters__search">
+            <span class="filters__icon"><Icon Name="search" Size="17" /></span>
+            <label class="sr-only" for="user-search">Search the register</label>
+            <input class="field__input"
+                   id="user-search"
+                   type="search"
+                   placeholder="Search name, username, or email"
+                   value="@_search"
+                   @oninput="OnSearchInput" />
+        </div>
+
+        <div class="filters__field">
+            <label class="filters__label" for="user-role">Role</label>
+            <select class="field__select" id="user-role" value="@_role" @onchange="OnRoleChange">
+                <option value="">All roles</option>
+                @foreach (var role in _roles)
+                {
+                    <option value="@role.UserType">@role.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="filters__field">
+            <label class="filters__label" for="user-status">Status</label>
+            <select class="field__select" id="user-status" value="@_status" @onchange="OnStatusChange">
+                <option value="">Any status</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="inactive">Inactive</option>
+                <option value="locked">Locked</option>
+            </select>
+        </div>
+
+        @* Only offered once something is set — a permanently dead Clear button
+           tells nobody anything about the state of the bar. *@
+        @if (HasFilters)
+        {
+            <button class="btn btn--quiet filters__clear" type="button" @onclick="ClearFiltersAsync">
+                Clear filters
+            </button>
+        }
+
+        @if (!_loading)
+        {
+            <span class="filters__count">
+                @_total.ToString("N0") @(_total == 1 ? "account" : "accounts")
+            </span>
+        }
+    </div>
+
+    @if (_notice is { Length: > 0 })
+    {
+        @* role=status, not alert: this is the happy path and should be announced
+           politely rather than interrupting whatever is being read. *@
+        <div class="alert alert--@_noticeTone" role="status" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon">
+                <Icon Name="@(_noticeTone == "warn" ? "alert" : "activity")" Size="17" />
+            </span>
+            <span>@_notice</span>
+            <button class="alert__dismiss" type="button" aria-label="Dismiss"
+                    @onclick="() => _notice = null">
+                <Icon Name="close" Size="14" />
+            </button>
+        </div>
+    }
+
+    @if (_error is { Length: > 0 })
+    {
+        <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+            <span>
+                @_error
+                <button class="btn btn--quiet" type="button" style="margin-left: var(--s-2)"
+                        @onclick="() => LoadAsync(_page)">Try again</button>
+            </span>
+        </div>
+    }
+
+    <section class="panel">
+        @if (_loading)
+        {
+            <div style="padding: var(--s-4) var(--s-5)">
+                @for (var i = 0; i < 10; i++)
+                {
+                    <div class="skeleton"
+                         style="height: 14px; margin: var(--s-4) 0; width: @(SkeletonWidths[i % SkeletonWidths.Length])"></div>
+                }
+            </div>
+        }
+        else if (_users.Count == 0)
+        {
+            <div class="empty">
+                <p class="empty__title">@EmptyTitle</p>
+                <p class="empty__body">@EmptyBody</p>
+            </div>
+        }
+        else
+        {
+            <div class="ledger-scroll">
+            <table class="ledger">
+                <thead>
+                    <tr>
+                        <th class="ledger__index" scope="col">#</th>
+                        <th scope="col">Account</th>
+                        <th class="ledger__h-contact" scope="col">Contact</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Status</th>
+                        <th class="ledger__h-seen" scope="col">Last seen</th>
+                        <th class="ledger__h-added" scope="col">Added</th>
+                        <th class="ledger__h-actions" scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (user, offset) in _users.Select((u, i) => (u, i)))
+                    {
+                        <tr>
+                            @* Counts the whole result set, not the page, so a row
+                               number means the same thing on page 4 as on page 1. *@
+                            <td class="ledger__index">@(FirstOnPage + offset)</td>
+                            <td class="ledger__account">
+                                <b>@user.FullName</b>
+                                <span>@user.Username</span>
+                            </td>
+                            <td class="ledger__contact">
+                                <b>@user.Email</b>
+                                <span>@(user.PhoneNumber is { Length: > 0 } ? user.PhoneNumber : "—")</span>
+                            </td>
+                            <td class="ledger__role">@user.UserTypeLabel</td>
+                            <td class="ledger__status">
+                                <span class="ledger__status-inner">
+                                    <span class="dot dot--@user.StatusTone"></span>
+                                    @user.Status
+                                </span>
+                            </td>
+                            <td class="ledger__seen">
+                                @if (user.LastSignInOn is { } seen)
+                                {
+                                    <b>@seen.ToString("d MMM yyyy")</b>
+                                    @seen.ToString("HH:mm")
+                                }
+                                else
+                                {
+                                    <span>Never</span>
+                                }
+                            </td>
+                            <td class="ledger__added">
+                                @if (user.CreatedOn is { } added)
+                                {
+                                    <b>@added.ToString("d MMM yyyy")</b>
+                                }
+                                @* The same word the activity ledger uses for a null actor: one
+                                   console, one name for "nobody is recorded here". *@
+                                @(user.CreatedByName ?? "Unidentified")
+                            </td>
+                            <td class="ledger__actions">
+                                @* Icon-only because a row cannot carry two worded buttons
+                                   without the record losing the space, so each one names
+                                   both the action and the person it acts on. *@
+                                <div class="row-actions">
+                                    <button class="icon-btn"
+                                            type="button"
+                                            title="Edit @user.FullName"
+                                            aria-label="Edit @user.FullName"
+                                            @onclick="() => OpenEdit(user)">
+                                        <Icon Name="edit" Size="16" />
+                                    </button>
+
+                                    @* One slot, two jobs, decided by whether the
+                                       account has a password yet. Showing both at
+                                       once would offer every row an action that is
+                                       wrong for it — you cannot reset a password
+                                       nobody has set, and re-inviting someone who
+                                       has set one would mint a link that overwrites
+                                       it. The server refuses each of those; the
+                                       button simply never appears.
+
+                                       Disabled while the account is switched off,
+                                       because a mail inviting someone into an
+                                       account that will refuse them at the door is
+                                       worse than no mail. The server refuses this
+                                       too — see AccountActivationValidator. *@
+                                    @if (user.IsPending)
+                                    {
+                                        <button class="icon-btn"
+                                                type="button"
+                                                disabled="@(!user.IsActive)"
+                                                title="@InviteTitle(user)"
+                                                aria-label="@InviteTitle(user)"
+                                                @onclick="() => OpenMail(user, MailKind.Invitation)">
+                                            <Icon Name="mail" Size="16" />
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="icon-btn"
+                                                type="button"
+                                                disabled="@(!user.IsActive)"
+                                                title="@ResetTitle(user)"
+                                                aria-label="@ResetTitle(user)"
+                                                @onclick="() => OpenMail(user, MailKind.PasswordReset)">
+                                            <Icon Name="key" Size="16" />
+                                        </button>
+                                    }
+
+                                    @if (IsSelf(user))
+                                    {
+                                        @* An inactive account is refused at sign-in and at
+                                           token refresh, so switching yourself off locks you
+                                           out of the only console that could switch you back
+                                           on. The server refuses this too; the button is
+                                           disabled so nobody has to find that out by trying. *@
+                                        <button class="icon-btn"
+                                                type="button"
+                                                disabled
+                                                title="You cannot deactivate your own account"
+                                                aria-label="You cannot deactivate your own account">
+                                            <Icon Name="power" Size="16" />
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="icon-btn @(user.IsActive ? "icon-btn--danger" : "")"
+                                                type="button"
+                                                title="@ActionVerb(user) @user.FullName"
+                                                aria-label="@ActionVerb(user) @user.FullName"
+                                                @onclick="() => OpenConfirm(user)">
+                                            <Icon Name="power" Size="16" />
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+
+            <Pager Page="_page" PageSize="PageSize" Total="_total"
+                   Noun="account" OnGo="LoadAsync" />
+        }
+    </section>
+</div>
+
+@* One dialog for both adding and editing — Editing is what tells them apart. *@
+<UserFormDialog Open="_formOpen"
+                Roles="_roles"
+                Editing="_editing"
+                OnCancel="CloseForm"
+                OnSaved="OnSavedAsync" />
+
+<ConfirmDialog Open="_confirming is not null"
+               Title="@ConfirmTitle"
+               ConfirmLabel="@ConfirmLabel"
+               BusyLabel="@(_confirming?.IsActive == true ? "Deactivating" : "Reactivating")"
+               Destructive="@(_confirming?.IsActive == true)"
+               Busy="_confirmBusy"
+               Error="@_confirmError"
+               Note="@($"Writes a {(_confirming?.IsActive == true ? "User deactivated" : "User reactivated")} row to the activity log.")"
+               OnCancel="CloseConfirm"
+               OnConfirm="ConfirmAsync">
+    @if (_confirming is { } target)
+    {
+        @if (target.IsActive)
+        {
+            <p>
+                <b>@target.FullName</b> (@target.Username) will no longer be able to sign in,
+                and any session they have open will end the next time it refreshes.
+            </p>
+            <p class="confirm__after">
+                Nothing is deleted. The account stays in this register as
+                <b>Inactive</b>, keeps everything it is attached to, and you can
+                switch it back on from this page.
+            </p>
+        }
+        else
+        {
+            <p>
+                <b>@target.FullName</b> (@target.Username) will be able to sign in again
+                with the password they already have.
+            </p>
+            <p class="confirm__after">
+                If the account was also locked by failed sign-in attempts, that lock is
+                cleared at the same time.
+            </p>
+        }
+    }
+</ConfirmDialog>
+
+<ConfirmDialog Open="_mailing is not null"
+               Title="@MailTitle"
+               ConfirmLabel="@MailConfirmLabel"
+               BusyLabel="Sending"
+               Busy="_mailBusy"
+               Error="@_mailError"
+               Note="@MailNote"
+               OnCancel="CloseMail"
+               OnConfirm="SendMailAsync">
+    @if (_mailing is { } target)
+    {
+        @if (_mailKind is MailKind.Invitation)
+        {
+            <p>
+                A new invitation goes to <b>@target.Email</b>, with a link that lets
+                <b>@target.FullName</b> set their password.
+            </p>
+            <p class="confirm__after">
+                Any earlier invitation for this account stops working, so if they are
+                holding an older email, tell them to use the new one. The link expires
+                in seven days and can be used once.
+            </p>
+        }
+        else
+        {
+            <p>
+                A link to set a new password goes to <b>@target.Email</b>, for
+                <b>@target.FullName</b> to use.
+            </p>
+            <p class="confirm__after">
+                You will not see the password they choose. Their current one keeps
+                working until they use the link, which expires in an hour — so nobody
+                is locked out by pressing this.
+            </p>
+        }
+    }
+</ConfirmDialog>
+
+@code {
+    private const int PageSize = 20;
+
+    /// <summary>Which mail a row's second button sends. See the note at that button.</summary>
+    private enum MailKind { Invitation, PasswordReset }
+
+    /// <summary>Wait for a pause in typing before querying, rather than per keystroke.</summary>
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(320);
+
+    /// <summary>Varied widths so the placeholder reads as text, not as bars.</summary>
+    private static readonly string[] SkeletonWidths = ["58%", "84%", "47%", "71%", "63%", "79%"];
+
+    private List<UserRow> _users = [];
+    private List<RoleOption> _roles = [];
+    private int _total;
+    private int _page = 1;
+    private bool _loading = true;
+    private string? _error;
+    private string? _notice;
+
+    /// <summary>
+    /// success or warn. Almost every confirmation this page shows is an
+    /// unqualified one, but inviting somebody can half-succeed — the account is
+    /// created before the mail is attempted — and that outcome should not be
+    /// painted the same green as one that needs nothing further.
+    /// </summary>
+    private string _noticeTone = "success";
+
+    private bool _formOpen;
+    private UserRow? _editing;
+
+    private UserRow? _confirming;
+    private bool _confirmBusy;
+    private string? _confirmError;
+
+    private UserRow? _mailing;
+    private MailKind _mailKind;
+    private bool _mailBusy;
+    private string? _mailError;
+
+    /// <summary>
+    /// Who is signed in, so the register can refuse to offer you your own off switch.
+    /// </summary>
+    private Guid? _actingUserId;
+
+    private string _search = string.Empty;
+    private string _role = string.Empty;
+    private string _status = string.Empty;
+
+    private CancellationTokenSource? _debounce;
+
+    private int FirstOnPage => (_page - 1) * PageSize + 1;
+
+    private bool HasFilters =>
+        !string.IsNullOrWhiteSpace(_search)
+        || !string.IsNullOrEmpty(_role)
+        || !string.IsNullOrEmpty(_status);
+
+    private string EmptyTitle => HasFilters
+        ? "No accounts match those filters"
+        : "No accounts yet";
+
+    private string EmptyBody => HasFilters
+        ? "Nothing in the register matches what is set above. Clear the filters to see every account."
+        : "Invite someone and they can sign in as soon as they set a password.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Read the identity the state provider already resolved rather than asking the
+        // API again — this page only needs to know which row is yours.
+        await AuthState.GetAuthenticationStateAsync();
+        _actingUserId = (AuthState as CookieAuthenticationStateProvider)?.CurrentUser?.UserId;
+
+        // Roles populate the filter, so they are fetched alongside the first page rather
+        // than after it — one paint, not two.
+        var roles = Api.GetRolesAsync();
+        var load = LoadAsync(1);
+
+        var response = await roles;
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _roles = response.Data;
+        }
+
+        await load;
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs args)
+    {
+        _search = args.Value?.ToString() ?? string.Empty;
+
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+
+        try
+        {
+            await Task.Delay(SearchDebounce, token);
+            await LoadAsync(1);
+        }
+        catch (TaskCanceledException)
+        {
+            // Superseded by a later keystroke — the newer query owns the result.
+        }
+    }
+
+    private Task OnRoleChange(ChangeEventArgs args)
+    {
+        _role = args.Value?.ToString() ?? string.Empty;
+        return LoadAsync(1);
+    }
+
+    private Task OnStatusChange(ChangeEventArgs args)
+    {
+        _status = args.Value?.ToString() ?? string.Empty;
+        return LoadAsync(1);
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _search = string.Empty;
+        _role = string.Empty;
+        _status = string.Empty;
+        return LoadAsync(1);
+    }
+
+    private bool IsSelf(UserRow user) => _actingUserId is { } id && id == user.UserId;
+
+    private static string ActionVerb(UserRow user) => user.IsActive ? "Deactivate" : "Reactivate";
+
+    private string ConfirmTitle => _confirming is null
+        ? string.Empty
+        : _confirming.IsActive ? "Deactivate this account?" : "Reactivate this account?";
+
+    private string ConfirmLabel => _confirming?.IsActive == true ? "Deactivate" : "Reactivate";
+
+    // Each names both the action and the person, because the button is icon-only.
+    private static string InviteTitle(UserRow user) => user.IsActive
+        ? $"Resend {user.FullName}'s invitation"
+        : $"{user.FullName} is inactive — reactivate the account to invite them again";
+
+    private static string ResetTitle(UserRow user) => user.IsActive
+        ? $"Send {user.FullName} a password reset"
+        : $"{user.FullName} is inactive — reactivate the account to send a reset";
+
+    private string MailTitle => _mailKind is MailKind.Invitation
+        ? "Send this invitation again?"
+        : "Send a password reset?";
+
+    private string MailConfirmLabel => _mailKind is MailKind.Invitation
+        ? "Send invitation"
+        : "Send reset link";
+
+    /// <summary>
+    /// The same footer line every dialog in this console carries, naming the row this
+    /// will write. The article is chosen rather than hard-coded, because one of the
+    /// two labels begins with a vowel and "a Invitation resent" was reaching the screen.
+    /// </summary>
+    private string MailNote
+    {
+        get
+        {
+            var label = _mailKind is MailKind.Invitation ? "Invitation resent" : "Reset requested";
+            var article = "AEIOU".Contains(label[0]) ? "an" : "a";
+            return $"Writes {article} {label} row to the activity log.";
+        }
+    }
+
+    private void OpenDialog()
+    {
+        _notice = null;
+        _editing = null;
+        _formOpen = true;
+    }
+
+    private void OpenEdit(UserRow user)
+    {
+        _notice = null;
+        _editing = user;
+        _formOpen = true;
+    }
+
+    private void CloseForm() => _formOpen = false;
+
+    private void OpenConfirm(UserRow user)
+    {
+        _notice = null;
+        _confirmError = null;
+        _confirmBusy = false;
+        _confirming = user;
+    }
+
+    private void CloseConfirm()
+    {
+        if (_confirmBusy) return;
+        _confirming = null;
+    }
+
+    private void OpenMail(UserRow user, MailKind kind)
+    {
+        _notice = null;
+        _mailError = null;
+        _mailBusy = false;
+        _mailKind = kind;
+        _mailing = user;
+    }
+
+    private void CloseMail()
+    {
+        if (_mailBusy) return;
+        _mailing = null;
+    }
+
+    private async Task SendMailAsync()
+    {
+        if (_mailing is not { } target || _mailBusy) return;
+
+        _mailBusy = true;
+        _mailError = null;
+
+        var response = _mailKind is MailKind.Invitation
+            ? await Api.ResendInvitationAsync(target.UserId)
+            : await Api.SendPasswordResetAsync(target.UserId);
+
+        _mailBusy = false;
+
+        if (response.Code != 200)
+        {
+            // Stays open with the server's sentence attached. Most usefully when
+            // the mail itself failed, because then pressing the button again is
+            // exactly the right next move and the dialog is already in front of you.
+            _mailError = response.Message;
+            return;
+        }
+
+        _mailing = null;
+        SetNotice(response.Message);
+
+        // Resending an invitation changes nothing the register displays, but a
+        // reset can — and either way the row is worth re-reading rather than
+        // leaving a confirmation beside stale data.
+        await LoadAsync(_page);
+    }
+
+    private async Task OnSavedAsync(UserFormDialog.SaveOutcome outcome)
+    {
+        var wasEditing = _editing is not null;
+
+        _formOpen = false;
+        _editing = null;
+
+        // The server's own sentence, verbatim — the same wording the activity log will
+        // carry for this write.
+        SetNotice(outcome.Message, outcome.NeedsAttention);
+
+        // A new account goes to the top of a register ordered newest first, so page 1 is
+        // where the confirmation has something to point at. An edit stays where it is.
+        await LoadAsync(wasEditing ? _page : 1);
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (_confirming is not { } target || _confirmBusy) return;
+
+        _confirmBusy = true;
+        _confirmError = null;
+
+        var response = await Api.SetUserActiveAsync(target.UserId, !target.IsActive);
+
+        _confirmBusy = false;
+
+        if (response.Code != 200)
+        {
+            // Stays open with the server's sentence attached — most usefully when another
+            // administrator changed the same row first.
+            _confirmError = response.Message;
+            return;
+        }
+
+        _confirming = null;
+        SetNotice(response.Message);
+
+        await LoadAsync(_page);
+    }
+
+    /// <summary>
+    /// One confirmation, in the server's words. <paramref name="needsAttention"/> is
+    /// for the outcome that only half worked, which is currently just an invitation
+    /// whose account was created and whose mail was not sent.
+    /// </summary>
+    private void SetNotice(string message, bool needsAttention = false)
+    {
+        _notice = message;
+        _noticeTone = needsAttention ? "warn" : "success";
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        if (page < 1) return;
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        // The four options partition the register exactly as the Status column labels it,
+        // so filtering to Locked cannot turn up a row the column calls Inactive. That is
+        // why Locked asks for all three: an account can be switched off, locked and
+        // waiting on an invitation at once, and the column reports only the first of those
+        // it finds — see UserService.ResolveStatus for the order and why it is that way.
+        var (isActive, isLocked, isPending) = _status switch
+        {
+            "active" => ((bool?)true, (bool?)false, (bool?)false),
+            "pending" => (true, null, true),
+            "locked" => (true, true, false),
+            "inactive" => (false, null, null),
+            _ => (null, null, null),
+        };
+
+        var response = await Api.GetUsersAsync(
+            page,
+            PageSize,
+            _search,
+            int.TryParse(_role, out var role) ? role : null,
+            isActive,
+            isLocked,
+            isPending);
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _users = response.Data.Items;
+            _total = response.Data.TotalRows;
+            _page = page;
+        }
+        else
+        {
+            _error = response.Message;
+            _users = [];
+            _total = 0;
+        }
+
+        _loading = false;
+    }
+
+    public void Dispose()
+    {
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+    }
+}

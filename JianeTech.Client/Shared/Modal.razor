@@ -1,0 +1,149 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*
+    Modal — a docket laid over the ledger.
+
+    The native <dialog> element rather than an overlay div, because showModal()
+    is what gives a real focus trap, an inert document behind, and rendering in
+    the top layer where no stacking context can cover it.
+
+    It is dismissed by the Close button in the head, or by whatever Cancel the
+    caller puts in its footer, and by nothing else. Escape is cancelled in
+    js/dialog.js; a click on the ground behind was never a dismissal to begin
+    with, which is why the backdrop is not blurred — see modal.css.
+
+    The element is always rendered and simply never opened, so its
+    ElementReference stays valid across the whole life of the page and the
+    caller can open it without a render round trip. Callers reset their own
+    form state when they open it.
+*@
+
+@* @onclose keeps C# and the DOM agreeing. Nothing should be able to close this
+   element except the calls below, but a dialog that left the top layer on its
+   own while Blazor still believed it was open would be unreopenable — the
+   component would see no change to act on. Syncing is cheap; being stuck is not. *@
+<dialog class="modal" @ref="_dialog" @onclose="OnDialogClosedAsync"
+        aria-labelledby="@_titleId"
+        aria-describedby="@(Lede is { Length: > 0 } ? _ledeId : null)">
+    <div class="modal__head">
+        <div>
+            <h2 class="modal__title" id="@_titleId">@Title</h2>
+            @if (Lede is { Length: > 0 })
+            {
+                <p class="modal__lede" id="@_ledeId">@Lede</p>
+            }
+        </div>
+
+        @* Disabled while the caller is saving: closing mid-write would leave the
+           person with no idea whether the account was created. *@
+        <button class="modal__close"
+                type="button"
+                aria-label="Close"
+                disabled="@Busy"
+                @onclick="RequestCloseAsync">
+            <Icon Name="close" Size="18" />
+        </button>
+    </div>
+
+    @ChildContent
+</dialog>
+
+@code {
+    private readonly string _titleId = $"modal-title-{Guid.NewGuid():N}";
+    private readonly string _ledeId = $"modal-lede-{Guid.NewGuid():N}";
+
+    private ElementReference _dialog;
+    private IJSObjectReference? _module;
+
+    /// <summary>What the DOM is currently showing, as opposed to what the caller asked for.</summary>
+    private bool _shown;
+
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>One line under the title saying what saving will do.</summary>
+    [Parameter]
+    public string? Lede { get; set; }
+
+    /// <summary>Suppresses the close button while the caller is mid-save.</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>The body and footer. The caller structures them so a submit button can sit inside its own form.</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Raised by the Close button. The caller is what actually sets <see cref="Open"/> back to false.</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Open == _shown)
+        {
+            return;
+        }
+
+        var module = await ModuleAsync();
+        await module.InvokeVoidAsync(Open ? "show" : "close", _dialog);
+        _shown = Open;
+    }
+
+    /// <summary>
+    /// Puts the caret in the first field the dialog's form rejected. Called by the form
+    /// after a failed submit — the dialog body scrolls, so a rejected field below the fold
+    /// would otherwise be reported somewhere nobody is looking.
+    /// </summary>
+    public async Task FocusFirstInvalidAsync()
+    {
+        if (!_shown)
+        {
+            return;
+        }
+
+        var module = await ModuleAsync();
+        await module.InvokeVoidAsync("focusFirstInvalid", _dialog);
+    }
+
+    private Task RequestCloseAsync() => Busy ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private Task OnDialogClosedAsync()
+    {
+        _shown = false;
+
+        // Open still true means the DOM closed without a button asking it to. Report it
+        // so the page's own state follows, rather than leaving the two disagreeing.
+        return Open ? OnClose.InvokeAsync() : Task.CompletedTask;
+    }
+
+    private async ValueTask<IJSObjectReference> ModuleAsync()
+        => _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/dialog.js");
+
+    public async ValueTask DisposeAsync()
+    {
+        // A dialog torn down while open would leave the document scrolled off. Both calls
+        // can fail if the circuit is already gone, which is not something to report.
+        try
+        {
+            if (_module is not null)
+            {
+                if (_shown)
+                {
+                    await _module.InvokeVoidAsync("close", _dialog);
+                }
+
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+}

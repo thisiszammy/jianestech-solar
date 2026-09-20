@@ -1,0 +1,610 @@
+@page "/"
+@layout BareLayout
+@using JianeTech.Client.Shared
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Jiane's Tech Solar Fund</PageTitle>
+
+@*
+    Landing — the public front door, and the only page here that is for someone
+    who has never heard of the fund.
+
+    It carries no [Authorize], and that is the whole of what makes it public:
+    AuthorizeRouteView only waits on GET /api/auth/me for pages that ask for
+    authorization, so this one paints at once for everybody. The console it used
+    to share an address with now lives at /manage, with every other console page
+    under it — they are all management views, and the address bar says so.
+
+    PLACEHOLDER CONTENT. The page is built ahead of its copy and photography.
+    Two rules keep that honest rather than merely unfinished:
+
+      1. On this page a dashed line means "not filled in". Every picture is an
+         ImageSlot, and every figure, name or contact detail nobody has supplied
+         yet wears the .ph mark. Rates and terms are the ones that matter — a
+         fund's landing page must never show a number that could be read as an
+         offer — so they are zeros inside a dashed box, not plausible inventions.
+      2. All of it lives in the @code block at the foot of this file, as data.
+         Replacing the copy is an edit to those lists; nothing has to be hunted
+         for in the markup. A Term, Fact or Question stops being marked the
+         moment its Placeholder flag is dropped.
+
+    The prose around those marks is draft, written from what the platform really
+    does (fixed profit interest, installation at no cost, fixed monthly
+    instalments on agreed terms, the household's electricity bill as the guide to
+    which scheme suits them rather than as anything that pays for it, an account
+    opened from /register or by invitation, and a password chosen from a one-time
+    link either way). It is there so the design can be judged with sentences in
+    it, and it wants an editor before launch.
+
+    The links in the bar are bare fragments, and they work because this page
+    lives at the app's base path: index.html sets <base href="/">, so "#questions"
+    resolves to "/#questions" — the same document — and Blazor scrolls to it.
+    Move this page to any other route and every one of them needs that route in
+    front of the hash, or they will navigate away to the root instead.
+*@
+
+<div class="landing" id="top">
+    @* A fragment link scrolls but does not move focus in Blazor, which would
+       leave a keyboard user scrolled past the bar with the next Tab still inside
+       it. So this one is handled rather than followed. *@
+    <a class="skip-link" href="#main" @onclick="SkipToMainAsync" @onclick:preventDefault>
+        Skip to main content
+    </a>
+
+    <header class="topbar landing__panel" @onkeydown="OnBarKeyDown">
+        <div class="landing__wrap topbar__inner">
+            @* Same lockup as the console's sidebar: the mark is decorative
+               beside words that already name the company. *@
+            <a class="topbar__brand" href="#top">
+                <FundMark Size="36" Label="" />
+                <span class="topbar__wordmark">
+                    <b>Jiane&rsquo;s Tech</b>
+                    <span>Solar Fund</span>
+                </span>
+            </a>
+
+            <nav class="topbar__nav" aria-label="On this page">
+                @foreach (var section in Sections)
+                {
+                    <a class="topbar__link" href="@section.Href">@section.Label</a>
+                }
+            </nav>
+
+            <div class="topbar__actions">
+                @* Opening an account is the bar's call, so signing in is a link
+                   beside it rather than a second button — one primary action to
+                   a view. It appears from 900px, where the bar has the room;
+                   below that the sheet carries it at a full-height target. *@
+                @if (!_signedIn)
+                {
+                    <a class="topbar__signin" href="login">Sign in</a>
+                }
+
+                <a class="btn topbar__cta" href="@EntryHref">
+                    <span class="topbar__cta-long">@EntryLabel</span>
+                    <span class="topbar__cta-short">@EntryLabelShort</span>
+                </a>
+
+                <button class="topbar__toggle"
+                        type="button"
+                        aria-expanded="@(_menuOpen ? "true" : "false")"
+                        aria-controls="topbar-menu"
+                        @onclick="() => _menuOpen = !_menuOpen">
+                    <Icon Name="@(_menuOpen ? "close" : "menu")" Size="22" />
+                    <span class="sr-only">@(_menuOpen ? "Close the menu" : "Open the menu")</span>
+                </button>
+            </div>
+        </div>
+
+        @* Narrow screens only; the bar's own links take over from 900px. Each
+           link closes the sheet behind it, or it would still be covering the
+           section it just scrolled to. *@
+        <nav class="topbar__menu" id="topbar-menu" aria-label="On this page" hidden="@(!_menuOpen)">
+            <div class="landing__wrap">
+                @foreach (var section in Sections)
+                {
+                    <a class="topbar__menu-link" href="@section.Href" @onclick="() => _menuOpen = false">
+                        @section.Label
+                    </a>
+                }
+
+                @if (!_signedIn)
+                {
+                    <a class="topbar__menu-link" href="login" @onclick="() => _menuOpen = false">
+                        Sign in
+                    </a>
+                }
+            </div>
+        </nav>
+    </header>
+
+    <main id="main" tabindex="-1" @ref="_main">
+        <section class="hero landing__panel" aria-labelledby="hero-title">
+            <div class="landing__wrap">
+                @* The sentence the sign-in panel opens with. Whoever follows the
+                   button from here reads it again on the next screen, which is
+                   the cheapest proof there is that the two belong together. *@
+                <h1 class="hero__statement" id="hero-title">Capital that comes back as power.</h1>
+
+                <div class="hero__row">
+                    <p class="hero__lede">
+                        Jiane&rsquo;s Tech Solar Fund puts investors&rsquo; capital to work on rooftops.
+                        Households have a system fitted now and pay for it in fixed monthly
+                        instalments, and those payments are what return a fixed profit interest
+                        to the people who funded it.
+                    </p>
+
+                    <div class="hero__actions">
+                        <a class="btn btn--brand hero__cta" href="@EntryHref">@EntryLabel</a>
+                        <a class="hero__more" href="#how-it-works">See how the fund works</a>
+                    </div>
+                </div>
+
+                <FundCircuit />
+            </div>
+        </section>
+
+        <section class="landing__section steps" id="how-it-works" aria-labelledby="steps-title">
+            <div class="landing__wrap">
+                <header class="landing__head">
+                    <h2 id="steps-title">How the fund works</h2>
+                    <p>Money goes out as panels and comes back as payments. In order:</p>
+                </header>
+
+                @* Numbered because it is a sequence — each step is what pays for
+                   the next. The numeral is drawn, so it is hidden from a screen
+                   reader that is already counting the list. *@
+                <ol class="steps__list">
+                    @for (var i = 0; i < Steps.Length; i++)
+                    {
+                        <li class="steps__item">
+                            <span class="steps__num numeric" aria-hidden="true">@(i + 1)</span>
+                            <h3>@Steps[i].Title</h3>
+                            <p>@Steps[i].Body</p>
+                        </li>
+                    }
+                </ol>
+            </div>
+        </section>
+
+        <section class="landing__section landing__section--sheet ways" aria-labelledby="ways-title">
+            <div class="landing__wrap">
+                <header class="landing__head">
+                    <h2 id="ways-title">One fund, two ways in</h2>
+                    <p>
+                        The fund looks different depending on which side of it you stand on.
+                        Either way, you end up with panels on the roof.
+                    </p>
+                </header>
+
+                <article class="way" id="investors" aria-labelledby="way-investors-title">
+                    <div class="way__text">
+                        <h3 id="way-investors-title">For investors</h3>
+                        <p>
+                            Your placement earns a fixed profit interest for the whole of its term,
+                            agreed before you commit. The fund also fits a solar system on your own
+                            roof, at no cost to you.
+                        </p>
+
+                        <dl class="way__terms">
+                            @foreach (var term in InvestorTerms)
+                            {
+                                <div class="rail__row">
+                                    <dt class="rail__label">@term.Label</dt>
+                                    <dd class="rail__value">@Figure(term.Value, term.Placeholder)</dd>
+                                </div>
+                            }
+                        </dl>
+                    </div>
+
+                    <ImageSlot Class="way__image"
+                               Brief="An investor at home, with the system the fund fitted on their roof in view."
+                               Width="1600"
+                               Height="1200" />
+                </article>
+
+                <article class="way way--flip" id="households" aria-labelledby="way-households-title">
+                    <div class="way__text">
+                        <h3 id="way-households-title">For households</h3>
+                        <p>
+                            Have solar fitted now and pay for it over time, in fixed monthly
+                            instalments on terms you agree to before anything goes on your roof.
+                            What you are billed for electricity today is how the fund works out
+                            which scheme suits you: each one is meant for bills up to a certain
+                            amount a month.
+                        </p>
+
+                        <dl class="way__terms">
+                            @foreach (var term in HouseholdTerms)
+                            {
+                                <div class="rail__row">
+                                    <dt class="rail__label">@term.Label</dt>
+                                    <dd class="rail__value">@Figure(term.Value, term.Placeholder)</dd>
+                                </div>
+                            }
+                        </dl>
+                    </div>
+
+                    <ImageSlot Class="way__image"
+                               Brief="A household rooftop in the Philippines with its panels newly fitted."
+                               Width="1600"
+                               Height="1200" />
+                </article>
+            </div>
+        </section>
+
+        <section class="landing__section company" id="company" aria-labelledby="company-title">
+            <div class="landing__wrap company__grid">
+                <div class="company__text">
+                    <h2 id="company-title">The company behind the fund</h2>
+                    <p>
+                        The Solar Fund is a division of Jiane&rsquo;s Tech Enterprise, which has been
+                        fitting systems on and inside buildings since 2014. The crews on your roof
+                        are the company&rsquo;s own, and so is the name on the paperwork.
+                    </p>
+                    <p>
+                        Every placement, instalment and sign-in is written to the fund&rsquo;s activity
+                        log as it happens. Nothing in the record is ever deleted.
+                    </p>
+                </div>
+
+                <dl class="company__facts">
+                    @foreach (var fact in CompanyFacts)
+                    {
+                        <div class="rail__row">
+                            <dt class="rail__label">@fact.Label</dt>
+                            <dd class="rail__value">@Figure(fact.Value, fact.Placeholder)</dd>
+                        </div>
+                    }
+                </dl>
+
+                <div class="company__partners">
+                    <p class="company__partners-title" id="partners-title">Suppliers and partners</p>
+                    <ul aria-labelledby="partners-title">
+                        @for (var i = 1; i <= PartnerSlots; i++)
+                        {
+                            <li>
+                                <ImageSlot Compact="true"
+                                           Kind="Logo"
+                                           Caption="Partner logo"
+                                           Brief="@($"Partner or supplier {i}, as a single-colour mark on a transparent ground.")"
+                                           Width="320"
+                                           Height="128" />
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="landing__section landing__section--sheet voices" aria-labelledby="voices-title">
+            <div class="landing__wrap">
+                <header class="landing__head">
+                    <h2 id="voices-title">From both sides of the fund</h2>
+                </header>
+
+                @* The first voice is given the room; the rest sit beside it in a
+                   ruled column. Three identical cards would say the three
+                   mattered equally, and a page gets to choose. *@
+                <div class="voices__grid">
+                    @for (var i = 0; i < Voices.Length; i++)
+                    {
+                        var voice = Voices[i];
+
+                        <figure class="voice @(i == 0 ? "voice--lead" : null)">
+                            <blockquote>
+                                <p>@voice.Quote</p>
+                            </blockquote>
+                            <figcaption>
+                                <ImageSlot Compact="true"
+                                           Decorative="true"
+                                           Class="voice__portrait"
+                                           Kind="Portrait"
+                                           Brief="@voice.PortraitBrief"
+                                           Width="160"
+                                           Height="160" />
+                                <span class="voice__who">
+                                    <b>@Figure(voice.Name, true)</b>
+                                    <span>@voice.Role</span>
+                                </span>
+                            </figcaption>
+                        </figure>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="landing__section faq" id="questions" aria-labelledby="faq-title">
+            <div class="landing__wrap faq__grid">
+                <header class="landing__head">
+                    <h2 id="faq-title">Questions people ask first</h2>
+                    <p>
+                        If yours is not here, ask the fund directly:
+                        @Figure("hello@example.com", true)
+                    </p>
+                </header>
+
+                @* Native disclosure: keyboard, find-in-page and no-script all
+                   work without a line of code, and the only motion is the mark
+                   turning when somebody opens one. *@
+                <div class="faq__list">
+                    @foreach (var question in Questions)
+                    {
+                        <details class="faq__item">
+                            <summary>
+                                <span>@question.Ask</span>
+                                <Icon Name="plus" Size="20" Class="faq__mark" />
+                            </summary>
+                            <div class="faq__answer">
+                                @if (question.Answer is { Length: > 0 })
+                                {
+                                    <p>@question.Answer</p>
+                                }
+
+                                @if (question.Pending is { Length: > 0 })
+                                {
+                                    <p><span class="ph ph--prose" title="@PlaceholderHint">@question.Pending</span></p>
+                                }
+                            </div>
+                        </details>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="closing landing__panel" aria-labelledby="closing-title">
+            <div class="landing__wrap closing__inner">
+                <h2 class="closing__statement" id="closing-title">Capital that comes back as power.</h2>
+
+                <div class="closing__side">
+                    <p>@ClosingLead</p>
+                    <a class="btn btn--brand" href="@EntryHref">@EntryLabel</a>
+
+                    @if (!_signedIn)
+                    {
+                        <a class="closing__alt" href="login">Already with the fund? Sign in</a>
+                    }
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="foot landing__panel">
+        <div class="landing__wrap foot__grid">
+            <div class="foot__about">
+                <div class="topbar__brand">
+                    <FundMark Size="36" Label="" />
+                    <span class="topbar__wordmark">
+                        <b>Jiane&rsquo;s Tech</b>
+                        <span>Solar Fund</span>
+                    </span>
+                </div>
+                <p>A division of Jiane&rsquo;s Tech Enterprise. Established 2014.</p>
+            </div>
+
+            @* Each title names the list under it, the way the console's sidebar
+               groups do, so no heading level is spent on footer furniture. *@
+            <nav class="foot__col" aria-labelledby="foot-fund">
+                <p class="foot__title" id="foot-fund">The fund</p>
+                <ul>
+                    @foreach (var section in Sections)
+                    {
+                        <li><a href="@section.Href">@section.Label</a></li>
+                    }
+                    <li><a href="#company">The company</a></li>
+                </ul>
+            </nav>
+
+            <div class="foot__col">
+                <p class="foot__title" id="foot-contact">Contact</p>
+                <ul aria-labelledby="foot-contact">
+                    @foreach (var line in ContactLines)
+                    {
+                        <li>@Figure(line, true)</li>
+                    }
+                </ul>
+            </div>
+
+            <nav class="foot__col" aria-labelledby="foot-accounts">
+                <p class="foot__title" id="foot-accounts">Accounts</p>
+                <ul>
+                    <li><a href="@EntryHref">@EntryLabel</a></li>
+                    @if (!_signedIn)
+                    {
+                        <li><a href="login">Sign in</a></li>
+                    }
+                    <li><a href="forgot-password">Reset your password</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="landing__wrap foot__legal">
+            <p>&copy; @DateTime.Now.Year Jiane&rsquo;s Tech Enterprise.</p>
+            <p>
+                <span class="ph ph--prose">
+                    Draft page. Anything outlined with dashes is a placeholder, and so is every photograph.
+                </span>
+            </p>
+        </div>
+    </footer>
+</div>
+
+@code {
+    private const string PlaceholderHint = "Placeholder — replace before launch";
+
+    private bool _signedIn;
+    private bool _menuOpen;
+    private ElementReference _main;
+
+    /// <summary>
+    /// The one call on the page, worded for whoever is looking at it. A visitor
+    /// is asked to open an account; somebody already signed in has one, and is
+    /// sent to the console instead of being sold the thing they already have.
+    /// </summary>
+    /// <remarks>
+    /// This used to point at /login for both, because there was nowhere else for
+    /// a stranger to go. Now that /register exists, signing in needs a door of
+    /// its own — the bar, the sheet, the closing panel and the footer each carry
+    /// one, so a returning visitor never has to read a page about joining to
+    /// find the way back in.
+    /// </remarks>
+    private string EntryHref => _signedIn ? "manage" : "register";
+
+    private string EntryLabel => _signedIn ? "Open the console" : "Open an account";
+
+    /// <summary>The same call at phone width, where the bar has room for two words.</summary>
+    private string EntryLabelShort => _signedIn ? "Console" : "Register";
+
+    /// <summary>
+    /// What the closing panel says above the call. The two readings are genuinely
+    /// different asks, so they get different sentences rather than one that hedges.
+    /// </summary>
+    private string ClosingLead => _signedIn
+        ? "Your placement or your instalments are in the console, along with everything the fund has recorded against your account."
+        : "Opening an account takes a few minutes and commits you to nothing. Terms — the rate on a placement, the instalment on a roof — are agreed with you before anything is signed.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Asked, not waited on: the page has already painted by the time this
+        // comes back, and all the answer changes is the wording of one button.
+        // The provider caches the Task, so the sign-in page a visitor goes to
+        // next reuses this answer instead of asking again.
+        var state = await AuthState.GetAuthenticationStateAsync();
+        _signedIn = state.User.Identity?.IsAuthenticated == true;
+    }
+
+    private async Task SkipToMainAsync() => await _main.FocusAsync();
+
+    private void OnBarKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _menuOpen = false;
+        }
+    }
+
+    /// <summary>
+    /// A value, dashed if nobody has supplied the real one yet. Every figure on
+    /// the page goes through here, so the mark cannot be forgotten on one.
+    /// </summary>
+    private static RenderFragment Figure(string value, bool placeholder) => placeholder
+        ? @<span class="ph" title="@PlaceholderHint">@value</span>
+        : @<span>@value</span>;
+
+    // =========================================================================
+    // Content. Everything below is what gets replaced; nothing above needs to be.
+    // =========================================================================
+
+    private sealed record SectionLink(string Label, string Href);
+
+    /// <param name="Placeholder">False once the value is the real one.</param>
+    private sealed record Term(string Label, string Value, bool Placeholder = true);
+
+    private sealed record Step(string Title, string Body);
+
+    private sealed record Voice(string Quote, string Name, string Role, string PortraitBrief);
+
+    /// <param name="Answer">What is already true and can be said today.</param>
+    /// <param name="Pending">What the fund still has to supply, written as a brief.</param>
+    private sealed record Question(string Ask, string? Answer, string? Pending);
+
+    /// <summary>In page order, so the bar reads the way the page scrolls.</summary>
+    private static readonly SectionLink[] Sections =
+    [
+        new("How it works", "#how-it-works"),
+        new("For investors", "#investors"),
+        new("For households", "#households"),
+        new("Questions", "#questions"),
+    ];
+
+    private static readonly Step[] Steps =
+    [
+        new("Capital is placed",
+            "An investor places capital with the fund for a fixed term, at a fixed profit interest."),
+        new("A roof is fitted",
+            "The fund surveys a household, sizes a system to what it uses, and installs it."),
+        new("The household pays it off",
+            "A fixed monthly instalment, for an agreed term, on the scheme that suits the electricity bill they already have."),
+        new("Investors are paid",
+            "Those payments return to the fund, which pays investors their interest and fits their own system."),
+    ];
+
+    private static readonly Term[] InvestorTerms =
+    [
+        new("Minimum placement", "₱000,000"),
+        new("Fixed profit interest", "0.0% a year"),
+        new("Term", "00 months"),
+        new("Interest paid", "Every 0 months"),
+        new("Your own installation", "Included", Placeholder: false),
+    ];
+
+    private static readonly Term[] HouseholdTerms =
+    [
+        new("Instalment", "Fixed for the whole term", Placeholder: false),
+        new("Matched to bills up to", "₱00,000 a month"),
+        new("Typical system", "0.0 kWp"),
+        new("Term", "00 months"),
+        new("Deposit", "₱00,000"),
+        new("Workmanship warranty", "00 years"),
+    ];
+
+    private static readonly Term[] CompanyFacts =
+    [
+        new("Established", "2014", Placeholder: false),
+        new("Systems installed", "000"),
+        new("Provinces served", "00"),
+        new("Registered with", "Body and number"),
+    ];
+
+    private const int PartnerSlots = 4;
+
+    // Testimonials are the content most dangerous to invent, so these are not
+    // invented: each one is a note to whoever collects the real thing.
+    private static readonly Voice[] Voices =
+    [
+        new("Placeholder for a household’s own words: what decided them, how the fitting went, and how they find the instalment.",
+            "Name Surname",
+            "Household, city or province",
+            "The household quoted, at home. Square crop, face in the upper third."),
+        new("Placeholder for an investor: why they placed with the fund, and what the first interest payment was like.",
+            "Name Surname",
+            "Investor since 0000",
+            "The investor quoted. Square crop, face in the upper third."),
+        new("Placeholder for a second household, or a business customer. Two sentences is plenty.",
+            "Name Surname",
+            "Household, city or province",
+            "The customer quoted. Square crop, face in the upper third."),
+    ];
+
+    private static readonly Question[] Questions =
+    [
+        new("What does an investor receive?",
+            "A fixed profit interest on the capital placed, for the length of the term, and a solar installation on the investor’s own property at no cost.",
+            "The rate, how often interest is paid, and when the installation is scheduled go here."),
+        new("What does a household pay?",
+            "A fixed monthly instalment, for a term agreed before anything is fitted. The electricity bill is not part of it: it is what the fund uses to work out which scheme suits a household, since each one is meant for bills up to a certain amount a month.",
+            "A typical instalment, the usual term and any deposit go here."),
+        new("Who owns the panels while they are being paid off?",
+            null,
+            "Ownership during the term and after it, in one plain sentence."),
+        new("What happens if a payment is missed?",
+            null,
+            "The fund’s policy on late and missed instalments goes here."),
+        new("Is the fund registered?",
+            null,
+            "The registering body, the registration number and its date go here."),
+        new("How do I register?",
+            "Open an account from any of the buttons on this page. You give your name, an email address and a username; the fund emails you a one-time link, and you choose your own password from it — nobody at the fund ever sees it. Accounts opened for you by the fund arrive the same way.",
+            null),
+        new("What does opening an account commit me to?",
+            "Nothing. An account is where a placement or a set of instalments will live once terms are agreed, and it is also how the fund reaches you while that is being worked out. Opening one is not an application for either.",
+            "What the fund needs from you before terms can be drawn up goes here."),
+    ];
+
+    private static readonly string[] ContactLines =
+    [
+        "Street address, city, province",
+        "09XX XXX XXXX",
+        "hello@example.com",
+    ];
+}

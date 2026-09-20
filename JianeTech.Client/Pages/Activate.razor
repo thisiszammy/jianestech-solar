@@ -1,0 +1,26 @@
+@page "/activate"
+@layout BareLayout
+@using JianeTech.Client.Shared
+
+@*
+    Where an invitation email lands. The whole screen is AccountLinkPage — see
+    the note there on why this and ResetPassword share one implementation.
+
+    No [Authorize]: nobody arriving here can sign in yet, which is the point.
+    Pages without the attribute are rendered by AuthorizeRouteView as they are,
+    so this does not need an opt-out of the console's redirect to /login.
+*@
+
+<PageTitle>Set your password · Jiane's Tech Solar Fund</PageTitle>
+
+<AccountLinkPage Mode="AccountLinkPage.LinkMode.Invitation" Token="@Token" />
+
+@code {
+    /// <summary>
+    /// The token, as the email's ACTIVATION_URL leaves it: <c>/activate?t={guid}</c>.
+    /// Nullable so a bare /activate is answered rather than thrown.
+    /// </summary>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "t")]
+    public Guid? Token { get; set; }
+}

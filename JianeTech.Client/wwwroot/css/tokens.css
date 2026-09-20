@@ -1,0 +1,278 @@
+/* ============================================================================
+   tokens.css — the single source of truth for the console's design language.
+
+   Everything here is sampled from the company seal (references/jte-logo-cut.png):
+   a gold-ringed badge with a navy shield at its heart, Est. 2014. That artwork
+   is a *certification mark*, not a startup logo, and the console is dressed to
+   match — an official record rather than a dashboard.
+
+   Three colours come out of the seal and each has one job:
+
+     navy   the structure. Every surface, rule and figure.
+     gold   the brand, and only the brand.
+     cyan   the circuit traces inside the shield — instrumentation, data marks.
+
+   The load-bearing rule about gold: **bright gold only ever appears on the dark
+   panel; on paper it is always the deep brass.** That is the discipline the seal
+   itself follows — its gold lettering sits on white or navy, never on gold — and
+   it is also what keeps the gold accessible, since #C09A52 on paper is 2.6:1 and
+   would fail as text. Break this and the console stops reading as the seal.
+
+   Green survives exactly once, as the "success" status semantic, never as brand.
+   ========================================================================== */
+
+:root {
+    /* --- Shield navy: the structural colour ------------------------------- */
+    /* Drawn from the shield field (#12355F) and the dark behind the camera. */
+    --ink:          #0d2342;
+    --ink-2:        #1c3d68;
+    --ink-3:        #4a6285;
+    --ink-4:        #5c7190;   /* meta text — 4.59:1 on --paper, do not lighten */
+    --ink-5:        #a8b4c6;
+
+    /* The fixed dark field: the sidebar and the login panel. This is the seal's
+       own ground as a physical object, so it does NOT invert with the theme —
+       everything drawn on it (white text, gold) assumes a dark ground in both
+       modes. Kept separate from --ink precisely because --ink does invert. */
+    --panel-dark:   #04152f;
+
+    /* --- The metal: the ring's highlight, body, and shadow ---------------- */
+    /* Sampled straight off the ring, which is why there are three of them. Gold
+       is a rendered metal in the artwork, and one flat yellow cannot stand in
+       for it — the ramp is what reads as brass rather than as mustard. */
+    --gold-lit:     #f6de96;   /* the lit edge. Dark grounds only. */
+    --gold:         #c09a52;   /* the ring's body. Dark grounds only. */
+    --brass:        #8a6428;   /* the shadow — the one gold that is safe on paper */
+    --gold-wash:    #fbf2de;   /* focus glow, gold at a whisper */
+
+    /* --- Circuit cyan: the traces inside the shield ----------------------- */
+    /* The console's second accent, and the reason this does not read as a bank.
+       Reserved for data marks and instrumentation, never for chrome. */
+    --trace:        #3e92bd;
+    --trace-deep:   #1f5f85;
+
+    /* --- Data marks ------------------------------------------------------- */
+    /* The sign-in chart's two series. Cyan against the seal's red, rather than
+       ink against red: ink bars on a page already set in ink read as structure
+       rather than as data, and blue/red survives the commonest colour blindness
+       where a green/red pair would not. Both series carry a written label as
+       well — the chart never leaves colour to do the work alone. */
+    --data-accepted: var(--trace-deep);
+    --data-refused:  var(--danger);
+
+    /* --- Ledger paper: cool, not cream ------------------------------------ */
+    --paper:        #f4f6f8;
+    --surface:      #ffffff;
+    --surface-2:    #f9fafc;
+    --border:       #dce2ea;
+    --border-soft:  #eaeef3;
+    --border-strong:#c0cad8;
+
+    /* A control's edge is the only thing that says "this is a control", so it
+       is held to 3:1 (WCAG 1.4.11) while decorative rules above are not. */
+    --field-border: #7e8fa8;
+
+    /* --- Status. Green lives here and nowhere else. ----------------------- */
+    /* Danger is the seal's own red — the one on "CCTV" and "Est. 2014". */
+    --success:      #18704f;
+    --success-bg:   #e2f2eb;
+    --warn:         #8a5a12;
+    --warn-bg:      #faefd9;
+
+    --danger:       #ae1219;
+    --danger-bg:    #fbe9e8;
+    --neutral:      #4a6285;
+    --neutral-bg:   #eaeef3;
+
+    /* An account invited and still waiting on its link. Deliberately the
+       instrumentation cyan rather than a fourth hue: pending is a lifecycle
+       state, not an alarm, and all three alarm colours are already spoken for —
+       amber is an account somebody switched off, red is one locked by failed
+       passwords. Green was never available; that is the brand rule. Aliased to
+       --trace-deep rather than copied, so the dark-mode redefinition carries
+       through on its own and only the tint is restated there. */
+    --pending:      var(--trace-deep);
+    --pending-bg:   #e3eef5;
+
+    /* The ground a modal is laid on. Navy rather than black, because the console
+       has no black in it — and deliberately NOT blurred: a blurred backdrop is the
+       platform signal for "tap outside to dismiss", and these dialogs do not. */
+    --scrim:        rgba(4, 21, 47, 0.62);
+
+    /* One focus colour, flipped to --gold-lit inside the dark panel. */
+    --focus:        var(--brass);
+
+    /* --- Type ------------------------------------------------------------- */
+    --font: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* The seal's ring lettering is condensed and set in caps. Archivo carries a
+       width axis, so the wordmark can echo that without a second typeface —
+       one family, two widths, clearly separated roles. Caps appear in the
+       wordmark and nowhere else in the console. */
+    --stretch-wordmark: 82%;
+
+    /* The other end of the same axis, and a third role: the landing page sets
+       its one statement expanded, so it reads as lettering stamped into a plate
+       rather than typed onto a page. Still one family — the widths never share
+       a job, and this one appears on the public page and nowhere else. */
+    --stretch-display: 116%;
+
+    /* Ledger figures line up column-wise; everything numeric uses this. */
+    --numeric: tabular-nums lining-nums;
+
+    --text-xs:   0.75rem;    /* 12px — row meta */
+    --text-sm:   0.8125rem;  /* 13px — table body, labels */
+    --text-base: 0.9375rem;  /* 15px — UI default */
+    --text-md:   1.0625rem;  /* 17px — section heads */
+    --text-lg:   1.375rem;   /* 22px — page title */
+    --text-xl:   1.875rem;   /* 30px — rail figures */
+    --text-2xl:  2.5rem;     /* 40px — login statement */
+    --text-3xl:  3.25rem;    /* 52px — login statement, wide */
+    --text-4xl:  5.5rem;     /* 88px — landing statement, wide */
+
+    /* --- Space: 4px rhythm, dashboard density ----------------------------- */
+    --s-1:  4px;
+    --s-2:  8px;
+    --s-3:  12px;
+    --s-4:  16px;
+    --s-5:  20px;
+    --s-6:  24px;
+    --s-8:  32px;
+    --s-10: 40px;
+    --s-12: 48px;
+    --s-16: 64px;
+
+    /* Beyond the console's density. A page that is read rather than scanned
+       needs air between its sections; nothing signed-in uses these. */
+    --s-20: 80px;
+    --s-24: 96px;
+    --s-32: 128px;
+
+    /* --- Radius: a real scale, not one value on everything ---------------- */
+    --r-sm:  4px;   /* chips, dots, inline marks */
+    --r-md:  7px;   /* inputs, buttons */
+    --r-lg:  11px;  /* panels, cards */
+    --r-pill: 999px;
+
+    /* --- Elevation: two steps only, tinted navy rather than grey ---------- */
+    --shadow-sm: 0 1px 2px rgba(13, 35, 66, 0.07);
+    --shadow-md: 0 6px 20px -6px rgba(13, 35, 66, 0.18);
+
+    --sidebar-w: 236px;
+    --z-bar: 50;
+    --z-toast: 100;
+    --z-modal: 200;
+
+    --dur-fast: 140ms;
+    --dur-base: 220ms;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark mode. Not an inversion: the navy deepens toward the darkest part of the
+   shield, the paper tones become slate, and the gold flips — on a dark ground
+   the *light* gold is the one safe as text, so --brass resolves to the pale end
+   of the ramp instead of the deep end. The name still means what it says:
+   "the gold you may set text in against this theme's paper".
+   ------------------------------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        --ink:          #edf1f7;
+        --ink-2:        #c0ccde;
+        --ink-3:        #96a4bc;
+        --ink-4:        #8394ae;
+        --ink-5:        #4a5a75;
+
+        --panel-dark:   #020c1c;
+
+        --gold-lit:     #efd79a;
+        --gold:         #d4b268;
+        --brass:        #d6b26a;
+        --gold-wash:    #2c2413;
+
+        --trace:        #63afd6;
+        --trace-deep:   #3e92bd;
+
+        --data-accepted: var(--trace);
+
+        --paper:        #08101f;
+        --surface:      #0e1a2e;
+        --surface-2:    #132239;
+        --border:       #26344c;
+        --border-soft:  #1b2840;
+        --border-strong:#3a4a66;
+        --field-border: #5f7396;
+
+        --success:      #49ba92;
+        --success-bg:   #0e2e27;
+        --warn:         #ddae5b;
+        --warn-bg:      #2f2510;
+        --pending-bg:   #10283a;
+        --pending-bg:   #10283a;
+        --danger:       #e8796f;
+        --danger-bg:    #38191a;
+        --neutral:      #96a4bc;
+        --neutral-bg:   #1b2840;
+
+        --scrim:        rgba(1, 6, 15, 0.74);
+
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+        --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
+    }
+}
+
+:root[data-theme='dark'] {
+    --ink:          #edf1f7;
+    --ink-2:        #c0ccde;
+    --ink-3:        #96a4bc;
+    --ink-4:        #8394ae;
+    --ink-5:        #4a5a75;
+
+    --panel-dark:   #020c1c;
+
+    --gold-lit:     #efd79a;
+    --gold:         #d4b268;
+    --brass:        #d6b26a;
+    --gold-wash:    #2c2413;
+
+    --trace:        #63afd6;
+    --trace-deep:   #3e92bd;
+
+    --data-accepted: var(--trace);
+
+    --paper:        #08101f;
+    --surface:      #0e1a2e;
+    --surface-2:    #132239;
+    --border:       #26344c;
+    --border-soft:  #1b2840;
+    --border-strong:#3a4a66;
+    --field-border: #5f7396;
+
+    --success:      #49ba92;
+    --success-bg:   #0e2e27;
+    --warn:         #ddae5b;
+    --warn-bg:      #2f2510;
+    --danger:       #e8796f;
+    --danger-bg:    #38191a;
+    --neutral:      #96a4bc;
+    --neutral-bg:   #1b2840;
+
+    --scrim:        rgba(1, 6, 15, 0.74);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------------------------------------------------------------------------
+   The dark panel is a fixed field in both themes, so anything sitting on it
+   needs the dark-ground focus colour regardless of what the page around it is
+   doing. Declared here, beside the token it overrides, rather than at the two
+   call sites that would otherwise each have to remember.
+   ------------------------------------------------------------------------ */
+.side,
+.login__panel,
+.account__panel,
+.register__panel,
+.landing__panel {
+    --focus: var(--gold-lit);
+}

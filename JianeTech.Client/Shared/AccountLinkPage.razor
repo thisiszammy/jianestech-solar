@@ -1,0 +1,406 @@
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@inject FundApiClient Api
+@inject NavigationManager Nav
+
+@*
+    AccountLinkPage — setting a password at the end of a one-time link.
+
+    Two pages use this: an invitation being accepted, and a recovery link being
+    spent. They are the same screen doing the same job, and the differences fit
+    in the switch expressions below — which is also why the wording lives here
+    rather than in two files, where the pair could drift apart unnoticed.
+
+    The link is checked before the form is drawn. It costs one request, and it
+    buys the difference between "choose a password, confirm it, press the
+    button, and now learn the link expired last Tuesday" and being told so
+    immediately, next to the thing to do about it.
+*@
+
+<AccountShell Statement="@Statement" PanelNote="@PanelNote" Title="@Title" Lede="@Lede">
+
+    @if (_state is State.Loading)
+    {
+        @* Stands in for the rail and the fields at their heights, so the column
+           does not jump when the answer lands. *@
+        <div class="account__wait" aria-busy="true" aria-label="Checking the link">
+            <div class="skeleton" style="height: 13px; width: 38%"></div>
+            <div class="skeleton" style="height: 13px; width: 74%"></div>
+            <div class="skeleton" style="height: 46px; width: 100%"></div>
+            <div class="skeleton" style="height: 46px; width: 100%"></div>
+        </div>
+    }
+    else if (_state is State.Refused)
+    {
+        <div class="account__state" role="alert">
+            <p class="account__state-title">
+                <span class="dot dot--danger"></span>
+                @RefusedTitle
+            </p>
+
+            @* The server's own sentence. It already distinguishes an expired
+               link from a spent one from a superseded one, and restating it
+               here in the console's words would only make the two disagree. *@
+            <p class="account__state-body">@_error</p>
+
+            <div class="account__state-actions">
+                @if (Mode is LinkMode.Recovery)
+                {
+                    <a class="btn btn--primary" href="forgot-password">Request a new link</a>
+                }
+                <a class="btn btn--ghost" href="login">Back to sign in</a>
+            </div>
+        </div>
+    }
+    else if (_state is State.Done)
+    {
+        <div class="account__state" role="status">
+            <p class="account__state-title">
+                <span class="dot dot--success"></span>
+                @DoneTitle
+            </p>
+            <p class="account__state-body">@_notice</p>
+
+            <div class="account__state-actions">
+                <a class="btn btn--primary" href="login">Sign in</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        @* The rail the email carried, in the same order, on the same paper.
+           It is the cheapest proof available that this page belongs to that
+           message — and it puts the username in front of someone who is about
+           to need it on the very next screen. *@
+        <div class="rail account__rail">
+            <p class="rail__caption">Your account</p>
+
+            @if (_link!.FullName is { Length: > 0 })
+            {
+                <div class="rail__row">
+                    <span class="rail__label">Account holder</span>
+                    <span class="rail__value">@_link.FullName</span>
+                </div>
+            }
+
+            <div class="rail__row">
+                <span class="rail__label">Username</span>
+                <span class="rail__value">@_link.Username</span>
+            </div>
+
+            <div class="rail__row">
+                <span class="rail__label">Link works until</span>
+                <span class="rail__value rail__value--muted">@Moment(_link.ExpiresOn)</span>
+            </div>
+        </div>
+
+        <form @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+            <div class="account__fields">
+                @if (_error is { Length: > 0 })
+                {
+                    <div class="alert alert--error" role="alert">
+                        <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                        <span>@_error</span>
+                    </div>
+                }
+
+                <div class="field">
+                    <label class="field__label" for="new-password">New password</label>
+                    <div class="field__wrap">
+                        <input class="field__input"
+                               id="new-password"
+                               name="new-password"
+                               type="@(_reveal ? "text" : "password")"
+                               autocomplete="new-password"
+                               aria-describedby="password-rules"
+                               disabled="@_busy"
+                               @bind="_password"
+                               @bind:event="oninput" />
+                        <button class="field__toggle"
+                                type="button"
+                                aria-label="@(_reveal ? "Hide password" : "Show password")"
+                                aria-pressed="@_reveal"
+                                @onclick="() => _reveal = !_reveal">
+                            <Icon Name="@(_reveal ? "eye-off" : "eye")" Size="18" />
+                        </button>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="confirm-password">Confirm password</label>
+                    @* No reveal toggle here on purpose: catching a typo is the
+                       only reason this field exists, and showing both defeats it. *@
+                    <input class="field__input"
+                           id="confirm-password"
+                           name="confirm-password"
+                           type="password"
+                           autocomplete="new-password"
+                           disabled="@_busy"
+                           @bind="_confirm"
+                           @bind:event="oninput" />
+                </div>
+
+                @* The two things the server actually enforces, each as a dot
+                   beside its own label. No strength meter: the policy is a
+                   length and a match, and scoring entropy on screen would imply
+                   rules nothing checks. *@
+                <ul class="account__rules" id="password-rules">
+                    <li class="account__rule @(LongEnough ? "account__rule--met" : "")">
+                        <span class="dot @(LongEnough ? "dot--success" : "")"></span>
+                        At least @MinimumPasswordLength characters
+                    </li>
+                    <li class="account__rule @(Matches ? "account__rule--met" : "")">
+                        <span class="dot @(Matches ? "dot--success" : "")"></span>
+                        Both entries match
+                    </li>
+                </ul>
+
+                <button class="btn btn--primary btn--block" type="submit" disabled="@_busy">
+                    @if (_busy)
+                    {
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span>@BusyLabel</span>
+                    }
+                    else
+                    {
+                        <span>@SubmitLabel</span>
+                    }
+                </button>
+            </div>
+        </form>
+
+        <p class="account__foot">@FootNote</p>
+    }
+
+</AccountShell>
+
+@code {
+    /// <summary>Mirrors <c>PasswordRules.MinimumLength</c> — change them together.</summary>
+    private const int MinimumPasswordLength = 8;
+
+    public enum LinkMode { Invitation, Recovery }
+
+    private enum State { Loading, Ready, Refused, Done }
+
+    private State _state = State.Loading;
+    private AccountLink? _link;
+
+    private string _password = string.Empty;
+    private string _confirm = string.Empty;
+    private bool _reveal;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    /// <summary>Which of the two flows this is. Everything else here branches on it.</summary>
+    [Parameter, EditorRequired]
+    public LinkMode Mode { get; set; }
+
+    /// <summary>
+    /// The raw token from the address bar. Nullable because someone can always
+    /// reach <c>/activate</c> with nothing after it, and that has to be answered
+    /// rather than thrown.
+    /// </summary>
+    [Parameter]
+    public Guid? Token { get; set; }
+
+    private bool LongEnough => _password.Length >= MinimumPasswordLength;
+
+    private bool Matches => _confirm.Length > 0 && _password == _confirm;
+
+    // --- Wording. The two flows side by side, so they cannot drift apart. -----
+
+    /// <summary>
+    /// The panel's headline, which has to keep pace with what has actually
+    /// happened: "your account needs a password" is the sentence the email led
+    /// with, and it stops being true the moment the form is submitted.
+    /// </summary>
+    private string Statement => (_state, Mode) switch
+    {
+        (State.Done, LinkMode.Invitation) => Named("Welcome to the fund console"),
+        (State.Done, _) => Named("That is sorted"),
+
+        // No name on a refusal: the link never resolved, so there is nobody to
+        // address, and guessing would be worse than saying nothing.
+        (State.Refused, _) => "That link has stopped working.",
+
+        (_, LinkMode.Invitation) => Named("Your account needs a password"),
+        _ => Named("Let's get you back in"),
+    };
+
+    /// <summary>
+    /// The sentence, with ", Maria" appended when the link told us who this is.
+    /// Written as a suffix rather than as two phrasings because every statement
+    /// here reads correctly both ways — which is the constraint on writing one.
+    /// </summary>
+    private string Named(string sentence)
+        => _link?.FirstName is { Length: > 0 } name
+            ? $"{sentence}, {name}."
+            : $"{sentence}.";
+
+    /// <summary>
+    /// Deliberately does not repeat the expiry. The rail already prints it, beside
+    /// the fields, where somebody deciding whether to finish now will actually look
+    /// — so this carries the one thing the rail has no row for: what to do when the
+    /// link no longer works.
+    /// </summary>
+    private string? PanelNote => _state switch
+    {
+        State.Ready when Mode is LinkMode.Invitation
+            => "This link works once. If it expires before you use it, an administrator can send you a fresh invitation from the user register.",
+        State.Ready
+            => "This link works once. If it expires before you use it, ask for another from the sign-in page.",
+        State.Done when Mode is LinkMode.Invitation
+            => "Your username is the one from the invitation. Everything you do in the console is written to its activity log.",
+        _ => null,
+    };
+
+    /// <summary>
+    /// A moment, worded as the emails word it — lowercase meridiem, which .NET does
+    /// not do on its own. The page and the mail print the same expiry, so they had
+    /// better print it the same way.
+    /// </summary>
+    private static string Moment(DateTime value)
+        => value.ToString("d MMM yyyy, h:mm tt").Replace("AM", "am").Replace("PM", "pm");
+
+    private string Title => Mode is LinkMode.Invitation
+        ? "Set your password"
+        : "Choose a new password";
+
+    private string? Lede => _state switch
+    {
+        State.Loading => "Checking your link.",
+        State.Ready when Mode is LinkMode.Invitation
+            => "This is the last step. Once it is set, you can sign in to the fund console.",
+        State.Ready => "Pick something you have not used here before.",
+        _ => null,
+    };
+
+    private string SubmitLabel => Mode is LinkMode.Invitation ? "Set password" : "Save password";
+
+    private string BusyLabel => Mode is LinkMode.Invitation ? "Setting" : "Saving";
+
+    private string RefusedTitle => Mode is LinkMode.Invitation
+        ? "This invitation cannot be used"
+        : "This link cannot be used";
+
+    // Neither of these restates the server's sentence printed underneath it. The
+    // recovery one used to read "Your password has been changed", directly above a
+    // line that said exactly that and then the useful half.
+    private string DoneTitle => Mode is LinkMode.Invitation
+        ? "Your account is ready"
+        : "New password saved";
+
+    private string FootNote => Mode is LinkMode.Invitation
+        ? "Setting your password is written to the fund's activity log, as every sign-in is."
+        : "Changing your password ends any session already open on this account.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Guarded so a re-render cannot re-check a link that has already been
+        // spent — which would report the successful activation as a used token.
+        if (_state is not State.Loading)
+        {
+            return;
+        }
+
+        if (Token is not { } token || token == Guid.Empty)
+        {
+            _error = Mode is LinkMode.Invitation
+                ? "This address is missing its invitation code. Open the link from your email again, or ask an administrator to send a new one."
+                : "This address is missing its reset code. Open the link from your email again, or request a new one.";
+            _state = State.Refused;
+            return;
+        }
+
+        var response = Mode is LinkMode.Invitation
+            ? await Api.GetInvitationAsync(token)
+            : await Api.GetPasswordResetAsync(token);
+
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _link = response.Data;
+            _state = State.Ready;
+            return;
+        }
+
+        // Shown verbatim: the server already tells an expired link from a spent
+        // one from a superseded one, and each of those wants a different next move.
+        _error = response.Message;
+        _state = State.Refused;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_busy || Token is not { } token) return;
+
+        // The same two rules the list above is already showing, restated as the
+        // sentence the server would have sent back — so pressing the button with
+        // an unmet rule says the same thing whether it was caught here or there.
+        if (!LongEnough)
+        {
+            _error = $"Password must be at least {MinimumPasswordLength} characters.";
+            return;
+        }
+
+        if (!Matches)
+        {
+            _error = "The two passwords do not match.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+
+        var response = Mode is LinkMode.Invitation
+            ? await Api.ActivateAccountAsync(token, _password)
+            : await Api.ResetPasswordAsync(token, _password);
+
+        _busy = false;
+
+        if (response.Code == 200)
+        {
+            _notice = response.Message;
+            _state = State.Done;
+
+            // Dropped rather than left in a field on a page that is still open.
+            _password = string.Empty;
+            _confirm = string.Empty;
+            return;
+        }
+
+        // Anything the person cannot fix by retyping ends the form rather than
+        // hanging an error above two fields that will be refused again — the link
+        // expired while the page sat open, somebody resent the invitation, the
+        // account was switched off in the meantime.
+        if (response.Code == 400 && !IsPasswordProblem(response.Message))
+        {
+            _error = response.Message;
+            _state = State.Refused;
+            return;
+        }
+
+        _error = response.Message;
+    }
+
+    /// <summary>
+    /// Whether a refusal is about what was typed, and so worth staying on the form for.
+    /// </summary>
+    /// <remarks>
+    /// Read off the message because the API answers every refusal with a 400 carrying
+    /// the validator's sentence, and the envelope has no field to tell the kinds apart.
+    /// It tests for the password rules rather than for the link, because that set is
+    /// small, closed and known — the three sentences the validators raise from
+    /// <c>PasswordRules</c> — while the set of ways a link can be dead keeps growing.
+    /// Guessing the smaller side wrong is also the cheaper mistake: an unrecognised
+    /// password error would end the form with an accurate sentence on it, where the
+    /// old test the other way round left the form up on an account that had been
+    /// deactivated, with nothing the reader could do about it.
+    ///
+    /// If this ever has to be exact, the answer is a code on the envelope, not a
+    /// longer list here.
+    /// </remarks>
+    private static bool IsPasswordProblem(string message)
+        => message.StartsWith("Password ", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("passwords do not match", StringComparison.OrdinalIgnoreCase);
+}

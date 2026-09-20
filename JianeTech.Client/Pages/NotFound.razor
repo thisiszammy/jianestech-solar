@@ -1,0 +1,42 @@
+@page "/not-found"
+@layout BareLayout
+@using JianeTech.Client.Shared
+
+<PageTitle>Page not found · Jiane's Tech Solar Fund</PageTitle>
+
+<div class="notfound">
+    <FundMark Size="44" />
+    <h1>That page is not part of the console</h1>
+    <p>The link may be out of date, or the page may have been renamed.</p>
+    <a class="btn btn--primary" href="manage">Go to the overview</a>
+</div>
+
+<style>
+    .notfound {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--s-4);
+        min-height: 100dvh;
+        padding: var(--s-8) var(--s-4);
+        text-align: center;
+    }
+
+    .notfound h1 {
+        max-width: 22ch;
+        font-size: var(--text-lg);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+    }
+
+    .notfound p {
+        max-width: 42ch;
+        color: var(--ink-4);
+        font-size: var(--text-sm);
+    }
+
+    .notfound .btn {
+        margin-top: var(--s-2);
+    }
+</style>

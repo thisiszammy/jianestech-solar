@@ -1,0 +1,31 @@
+@*
+    Shown for the moment it takes to ask the API whether the cookies still name
+    a valid session. A quiet holding state, not a spinner on an empty page —
+    flashing the sign-in form at someone who is already signed in is worse than
+    a brief pause.
+*@
+
+<div class="auth-gate">
+    <FundMark Size="44" />
+    <p>Checking your session</p>
+</div>
+
+<style>
+    .auth-gate {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--s-4);
+        min-height: 100dvh;
+        color: var(--ink-4);
+        font-size: var(--text-sm);
+        animation: gate-in 400ms var(--ease) 180ms both;
+    }
+
+    /* Delayed so a fast answer never flashes this on screen at all. */
+    @@keyframes gate-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+</style>

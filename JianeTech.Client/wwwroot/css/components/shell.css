@@ -1,0 +1,528 @@
+/* ============================================================================
+   shell.css — the signed-in console frame: sidebar, header, content area.
+   ========================================================================== */
+
+.shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 100dvh;
+}
+
+/* --- Sidebar ------------------------------------------------------------- */
+/* The sidebar is exactly one viewport tall and pinned there. As a plain grid
+   item it stretched to the height of the *row*, which is the height of the
+   longest page — so on the activity ledger the sign-out button sat a few
+   thousand pixels down the document and you had to scroll the whole page to
+   reach it.
+
+   Sticky rather than a fixed app-shell with its own scroller on .main: the
+   document stays the scroll container, so scroll restoration between routes,
+   find-on-page and the mobile URL-bar collapse all keep working. Only one
+   nested scroll region is introduced — the nav list — which is the minimum the
+   design needs. */
+.side {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-dark);
+    color: rgba(255, 255, 255, 0.82);
+    border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+/* The lockup and the footer hold their size; the nav list between them is the
+   only part that gives, so the identity and sign-out are always on screen. */
+.side__mark {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-5) var(--s-5) var(--s-6);
+}
+
+.side__glyph {
+    flex: none;
+}
+
+.side__wordmark {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+/* Set in Archivo's condensed width and caps, echoing the lettering around the
+   seal's ring. Caps are otherwise rationed to two places: the sign-in
+   page's division line, and the nav's two group labels, which name sections
+   rather than content. Everywhere else, sentence case. */
+.side__wordmark b {
+    font-size: var(--text-base);
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.side__wordmark span {
+    font-size: var(--text-xs);
+    color: rgba(255, 255, 255, 0.58);
+}
+
+/* The one scrolling region in the shell. min-height:0 is what makes it work: a
+   column flex item defaults to min-height:auto and refuses to shrink below its
+   content, so without it overflow-y never triggers and the list just shoves the
+   footer off the bottom of the panel instead of scrolling.
+
+   The block padding is not decoration — :focus-visible draws a 2px ring at 2px
+   offset, and without room for it the first and last link's ring is shaved off
+   by the scroll box's edge. */
+.side__nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s-1) var(--s-3);
+}
+
+/* No overscroll-behavior:contain here, deliberately. It would stop a scroll that
+   reaches the end of the list from carrying on into the page — which sounds
+   right, but an overflow:auto box is a scroll container even with nothing to
+   scroll, so `contain` also swallowed the wheel entirely whenever the list fit.
+   With the handful of items the console ships, that meant pointing at the
+   sidebar and scrolling did nothing at all. Chaining is the better trade: it
+   only shows up once the nav overflows, and the panel is pinned anyway, so the
+   page moving underneath it is not disorienting. */
+
+/* --- The nav's scrollbar ------------------------------------------------ */
+/* base.css dresses every scrollbar in --border-strong, which is a paper tone:
+   on the near-black panel that lands as a bright grey bar, and reads as an OS
+   artifact sitting on top of the console rather than part of it.
+
+   Gold is the obvious "on-theme" answer and is the wrong one — tokens.css
+   reserves gold for the brand and cyan for instrumentation, and a scrollbar is
+   chrome. The panel already has a vocabulary for passive surfaces: white at low
+   alpha (.07 hover, .09 borders, .1 active). The thumb joins that scale, a step
+   above the active nav item so it is findable, and brightens when the pointer
+   is in the list or focus lands inside it.
+
+   Nothing hides it when the list fits: overflow-y:auto simply paints no
+   scrollbar when there is nothing to scroll. It is not faded out on idle
+   either — a thumb that only appears on hover tells a touch or keyboard user
+   nothing about there being more below. */
+.side__nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.26) transparent;
+}
+
+.side__nav:hover,
+.side__nav:focus-within {
+    scrollbar-color: rgba(255, 255, 255, 0.46) transparent;
+}
+
+/* Fallback for engines without scrollbar-width/-color — older Safari, and
+   Chrome before 121. Where the standard properties above *are* supported they
+   win outright and these rules are never applied, so the two have to describe
+   the same scrollbar rather than drift apart. */
+.side__nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.side__nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Drawn inside a transparent 1px border so the thumb reads as a 4px hairline
+   rather than filling the gutter. */
+.side__nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.26);
+    background-clip: content-box;
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    transition: background var(--dur-fast) var(--ease);
+}
+
+.side__nav:hover::-webkit-scrollbar-thumb,
+.side__nav:focus-within::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.46);
+    background-clip: content-box;
+}
+
+.side__nav::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.6);
+    background-clip: content-box;
+}
+
+.side__link {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: 42px;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-md);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: var(--text-base);
+    font-weight: 500;
+    transition:
+        background var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.side__link:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+}
+
+/* Current location is marked by weight and a gold rule, not colour alone. */
+.side__link.active {
+    position: relative;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-weight: 600;
+}
+
+.side__link.active::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--s-3) * -1 + 3px);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    border-radius: var(--r-pill);
+    background: var(--gold);
+}
+
+/* No margin-top:auto any more — .side__nav's flex:1 is what pushes this to the
+   bottom now, and two mechanisms competing to place the same element is how you
+   get a footer that floats mid-panel the first time the nav overflows. */
+.side__foot {
+    flex: none;
+    padding: var(--s-4);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.side__who {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-2);
+}
+
+.side__avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-md);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+.side__who-text {
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.side__who-text b {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.side__who-text span {
+    font-size: var(--text-xs);
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.side__signout {
+    width: 100%;
+    justify-content: flex-start;
+    color: rgba(255, 255, 255, 0.66);
+}
+
+.side__signout:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+/* --- Main ---------------------------------------------------------------- */
+.main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: var(--s-8) var(--s-8) var(--s-5);
+}
+
+.page-head h1 {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.page-head__sub {
+    margin-top: 2px;
+    font-size: var(--text-sm);
+    color: var(--ink-4);
+}
+
+.page-head__stamp {
+    flex: none;
+    font-size: var(--text-sm);
+    color: var(--ink-4);
+    font-variant-numeric: var(--numeric);
+}
+
+.page-body {
+    flex: 1;
+    padding: 0 var(--s-8) var(--s-8);
+}
+
+/* --- Mobile: the sidebar becomes a top bar ------------------------------- */
+@media (max-width: 899px) {
+    .shell {
+        grid-template-columns: 1fr;
+    }
+
+    /* Not a column of full viewport height here — it is a top bar, so the pinning
+       and the 100dvh both come off. Left static rather than made a sticky header:
+       that would be a behaviour change this layout has no z-index scale for. */
+    .side {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-3);
+        padding: var(--s-2) var(--s-3);
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+
+        /* This used to be a safety valve for very narrow devices, with the
+           scrollbar hidden because a 2-item nav that appears scrollable reads as
+           broken. With seven destinations it is the normal state on a phone: the
+           bar cannot fit them at any label size worth keeping, and dropping the
+           labels for icons alone would not fit either. So the scrolling is real
+           now, and it is shown — a strip that scrolls with no sign of it is how
+           the last three destinations become undiscoverable.
+
+           min-width is the load-bearing line. .side is a grid item, and a grid
+           item's auto minimum refuses to shrink below its content, so without
+           this the track grew to the nav's full width and took the whole
+           document sideways with it — overflow-x here never got the chance to
+           do anything. */
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.26) transparent;
+    }
+
+    .side:hover,
+    .side:focus-within {
+        scrollbar-color: rgba(255, 255, 255, 0.46) transparent;
+    }
+
+    /* Fallback for engines without scrollbar-width/-color, matching the nav's
+       own treatment on the desktop panel. */
+    .side::-webkit-scrollbar {
+        height: 5px;
+    }
+
+    .side::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .side::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.26);
+        border-radius: var(--r-pill);
+    }
+
+    .side:hover::-webkit-scrollbar-thumb,
+    .side:focus-within::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.46);
+    }
+
+    .side__mark {
+        padding: 0;
+        flex: none;
+    }
+
+    /* The glyph carries the brand here. Keeping the words as well is what
+       pushed the bar past the viewport and made it scroll. */
+    .side__wordmark {
+        display: none;
+    }
+
+    /* The bar itself is the horizontal safety valve, so the list hands its
+       scrolling back — two nested scrollers on one row would fight each other
+       for the same swipe. */
+    .side__nav {
+        flex-direction: row;
+        padding: 0;
+        flex: 1;
+        gap: var(--s-1);
+        min-height: auto;
+        overflow: visible;
+    }
+
+    .side__link {
+        padding: 0 var(--s-2);
+        gap: var(--s-2);
+    }
+
+    .side__link.active::before {
+        left: 50%;
+        top: auto;
+        bottom: 2px;
+        transform: translateX(-50%);
+        width: 18px;
+        height: 3px;
+    }
+
+    /* The footer is a stacked block in the sidebar; in the top bar it has to sit
+       on one line, or the avatar and the sign-out button stack and double the
+       bar's height. */
+    .side__foot {
+        display: flex;
+        align-items: center;
+        gap: var(--s-1);
+        margin-top: 0;
+        padding: 0;
+        border-top: 0;
+        flex: none;
+    }
+
+    .side__who-text,
+    .side__signout span {
+        display: none;
+    }
+
+    .side__who {
+        margin-bottom: 0;
+    }
+
+    .side__avatar {
+        width: 30px;
+        height: 30px;
+    }
+
+    /* Icon-only here, so it needs its own touch target rather than a label's. */
+    .side__signout {
+        width: auto;
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .page-head,
+    .page-body {
+        padding-inline: var(--s-4);
+    }
+
+    .page-head {
+        padding-top: var(--s-6);
+        flex-wrap: wrap;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Nav groups.
+
+   The console now holds two different jobs — running the fund, and running the
+   console itself — and they should not read as one undifferentiated list. Each
+   group is announced by a label that sits *on* a hairline rule spanning the
+   panel. The rule is the structural part: it says a new section of the console
+   starts here. The label only names it, so it is set as small and as quiet as
+   it can be while still being read, and it is not a link, not clickable, and
+   never the current location.
+
+   Marked up as a <ul> inside a labelled <nav> section so a screen reader
+   announces "Operation, list, 5 items" rather than reading ten sibling links
+   with no sense of where one group ends.
+   ------------------------------------------------------------------------ */
+.side__group + .side__group {
+    margin-top: var(--s-4);
+}
+
+.side__group-label {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin: 0 0 var(--s-2);
+    padding: 0 var(--s-3);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    /* 6.1:1 on --panel-dark. 0.42 looked right and measured 4.0:1, which small
+       11px caps do not get away with — "large text" starts at 18.66px bold. */
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.side__group-label::after {
+    content: '';
+    flex: 1;
+    height: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.side__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* --- Mobile: the groups fold away ---------------------------------------- */
+/* In the top bar there is no vertical room for a section rule, and the two
+   groups sit end to end on one line. The labels come off the screen but stay
+   in the accessibility tree, so the grouping still reads to a screen reader
+   even though it is no longer drawn. */
+@media (max-width: 899px) {
+    .side__group {
+        display: flex;
+        align-items: center;
+    }
+
+    .side__group,
+    .side__list {
+        flex-direction: row;
+        gap: var(--s-1);
+    }
+
+    .side__group + .side__group {
+        margin-top: 0;
+        margin-left: var(--s-2);
+        padding-left: var(--s-2);
+        border-left: 1px solid rgba(255, 255, 255, 0.11);
+    }
+
+    /* display:none, not the usual visually-hidden treatment. aria-labelledby
+       reads a referenced element whether or not it is displayed, so each list
+       keeps its name either way — and the 1px absolutely-positioned box the
+       other technique leaves behind had no positioned ancestor here, so it
+       resolved against the viewport at the bar's scroll offset and dragged the
+       whole document 300px sideways. Nothing to escape is better than something
+       to contain. */
+    .side__group-label {
+        display: none;
+    }
+}

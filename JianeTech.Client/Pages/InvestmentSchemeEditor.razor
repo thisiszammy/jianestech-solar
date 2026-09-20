@@ -1,0 +1,1439 @@
+@page "/manage/investment-schemes/new"
+@page "/manage/investment-schemes/{SchemeId:guid}"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using System.Globalization
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Schemes
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+
+@*
+    The investment scheme configuration page.
+
+    Built to the same plan as the installment one — form in the spine, consequences in
+    the rail beside it, recomputed on every keystroke — because it is the same job. What
+    differs is what makes an investment scheme hard to picture: its term is not a uniform
+    run of payments. It has a dead stretch at the head that pays nothing, and — on an
+    immediate scheme — a heavier stretch at the tail where the capital comes back on top
+    of the profit. Neither of those is visible in a column of figures.
+
+    So the first thing under the form is a drawing of the term, to scale. Then the
+    headline question — when the capital is back — and last the detail of what is paid and
+    when, with the ledger under it for anybody checking a figure against an agreement.
+
+    Nothing on this page compounds, and nothing on it may imply that it does. The whole
+    return is fixed and scheduled before a peso moves: there is no balance accruing, and
+    nothing paid out is reinvested. See the note on InvestmentMath for the figure that used
+    to be here and why it went.
+*@
+
+<PageTitle>@(IsCreate ? "New investment scheme" : Title) · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <a class="page-head__back" href="manage/investment-schemes">
+            <Icon Name="prev" Size="14" />
+            Investment schemes
+        </a>
+        <h1>@(IsCreate ? "New investment scheme" : Title)</h1>
+        @if (Lede is { Length: > 0 })
+        {
+            <p class="page-head__sub">@Lede</p>
+        }
+    </div>
+    @if (!IsCreate && _original is { } loaded)
+    {
+        <span class="page-head__stamp">
+            <span class="dot dot--@loaded.StatusTone"></span>
+            @loaded.Status
+        </span>
+    }
+</header>
+
+<div class="page-body">
+    @if (_notice is { Length: > 0 })
+    {
+        <div class="alert alert--success" role="status" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="activity" Size="17" /></span>
+            <span>@_notice</span>
+            <button class="alert__dismiss" type="button" aria-label="Dismiss"
+                    @onclick="() => _notice = null">
+                <Icon Name="close" Size="14" />
+            </button>
+        </div>
+    }
+
+    @if (_loadError is { Length: > 0 })
+    {
+        <section class="panel">
+            <div class="empty">
+                <p class="empty__title">This scheme could not be opened</p>
+                <p class="empty__body">@_loadError</p>
+                <a class="btn btn--ghost" href="manage/investment-schemes"
+                   style="margin-top: var(--s-2)">Back to the register</a>
+            </div>
+        </section>
+    }
+    else if (_loading)
+    {
+        <section class="panel">
+            <div style="padding: var(--s-5)">
+                @for (var i = 0; i < 6; i++)
+                {
+                    <div class="skeleton" style="height: 44px; margin-bottom: var(--s-4)"></div>
+                }
+            </div>
+        </section>
+    }
+    else
+    {
+        <div class="board">
+            <div class="board__spine">
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>Terms</h2>
+                        <span class="panel__note">Six figures. Everything else is read off them.</span>
+                    </div>
+
+                    @* A plain form rather than an EditForm. Every field here feeds an
+                       arithmetic that has to answer on each keystroke, and EditForm's
+                       inputs bind on change — the rail would sit one field behind the
+                       reader all the way down the page. The checks below mirror
+                       InvestmentSchemeValidator exactly; the server stays the authority. *@
+                    <form class="terms" @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
+                        @if (_saveError is { Length: > 0 })
+                        {
+                            <div class="alert alert--error" role="alert"
+                                 style="margin: var(--s-5) var(--s-5) 0">
+                                <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                                <span>@_saveError</span>
+                            </div>
+                        }
+
+                        <div class="terms__grid">
+                            <div class="field field--wide">
+                                <label class="field__label" for="iv-description">
+                                    What this scheme is called<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <input class="field__input" id="iv-description" type="text"
+                                       maxlength="200" autocomplete="off" disabled="@_saving"
+                                       aria-invalid="@Invalid("description")"
+                                       aria-describedby="@Describe("description", "iv-description-hint")"
+                                       placeholder="Five-year deferred, 3kW"
+                                       value="@_description"
+                                       @oninput="e => Set(() => _description = Text(e))" />
+                                <FieldError Id="iv-description-error" Message="@Error("description")" />
+                                <p class="field__hint" id="iv-description-hint">
+                                    How it appears wherever the scheme is offered. Two schemes on
+                                    offer cannot share a name.
+                                </p>
+                            </div>
+
+                            @* ------------------------------------------------------------
+                               The structure is the decisive choice on this form and it is
+                               asked first, because every figure below reads differently
+                               depending on the answer. Two native radios rather than a
+                               select: there are exactly two, and a control that shows both
+                               at once is what lets somebody compare them.
+                               ------------------------------------------------------------ *@
+                            <p class="terms__section" id="iv-structure-section">Structure</p>
+
+                            <div class="field field--wide">
+                                <span class="field__label" id="iv-structure-label">
+                                    When is the installation fitted?
+                                </span>
+                                <div class="basis" role="radiogroup" aria-labelledby="iv-structure-label">
+                                    <label class="basis__option">
+                                        <input type="radio" name="iv-structure" disabled="@_saving"
+                                               checked="@(_structure == SchemeStructure.Immediate)"
+                                               @onchange="() => SetStructure(SchemeStructure.Immediate)" />
+                                        <span>At the start</span>
+                                    </label>
+                                    <label class="basis__option">
+                                        <input type="radio" name="iv-structure" disabled="@_saving"
+                                               checked="@(_structure == SchemeStructure.Deferred)"
+                                               @onchange="() => SetStructure(SchemeStructure.Deferred)" />
+                                        <span>At the end</span>
+                                    </label>
+                                </div>
+                                <p class="field__hint" id="iv-structure-hint">@StructureHint</p>
+                            </div>
+
+                            <p class="terms__section" id="iv-terms-section">The placement</p>
+
+                            <div class="field">
+                                <label class="field__label" for="iv-minimum">
+                                    Minimum investment<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="iv-minimum" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("minimum")"
+                                           aria-describedby="@Describe("minimum", "iv-minimum-hint")"
+                                           placeholder="0.00"
+                                           value="@_minimumText"
+                                           @oninput="e => Set(() => SetMinimum(Text(e)))" />
+                                </div>
+                                <FieldError Id="iv-minimum-error" Message="@Error("minimum")" />
+                                <p class="field__hint" id="iv-minimum-hint">The least that may be placed on these terms.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="iv-interest">
+                                    Profit interest<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <div class="field__money field__money--suffix">
+                                    <input class="field__input" id="iv-interest" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("interest")"
+                                           aria-describedby="@Describe("interest", "iv-interest-hint")"
+                                           placeholder="12.5"
+                                           value="@_interestText"
+                                           @oninput="e => Set(() => _interestText = Text(e))" />
+                                    <span class="field__money-suffix" aria-hidden="true">% a year</span>
+                                </div>
+                                <FieldError Id="iv-interest-error" Message="@Error("interest")" />
+                                <p class="field__hint" id="iv-interest-hint">
+                                    Per year, on the capital placed, and paid out as it is earned
+                                    rather than compounded. What it accumulates to over the term is
+                                    in the rail.
+                                </p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="iv-years">
+                                    Term<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <div class="field__money field__money--suffix">
+                                    <input class="field__input" id="iv-years" type="text"
+                                           inputmode="numeric" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("years")"
+                                           aria-describedby="@Describe("years", "iv-years-hint")"
+                                           placeholder="5"
+                                           value="@_yearsText"
+                                           @oninput="e => Set(() => _yearsText = Text(e))" />
+                                    <span class="field__money-suffix" aria-hidden="true">years</span>
+                                </div>
+                                <FieldError Id="iv-years-error" Message="@Error("years")" />
+                                <p class="field__hint" id="iv-years-hint">How long the capital stays with the fund.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="iv-grace">Grace period</label>
+                                <div class="field__money field__money--suffix">
+                                    <input class="field__input" id="iv-grace" type="text"
+                                           inputmode="numeric" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("grace")"
+                                           aria-describedby="@Describe("grace", "iv-grace-hint")"
+                                           placeholder="0"
+                                           value="@_graceText"
+                                           @oninput="e => Set(() => _graceText = Text(e))" />
+                                    <span class="field__money-suffix" aria-hidden="true">months</span>
+                                </div>
+                                <FieldError Id="iv-grace-error" Message="@Error("grace")" />
+                                <p class="field__hint" id="iv-grace-hint">
+                                    Months at the start that pay nothing, while the array is being
+                                    built and commissioned.
+                                </p>
+                            </div>
+
+                            <div class="field field--wide">
+                                <label class="field__label" for="iv-installation">Installation the investor receives</label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="iv-installation" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("installation")"
+                                           aria-describedby="@Describe("installation", "iv-installation-hint")"
+                                           placeholder="0.00"
+                                           value="@_installationText"
+                                           @oninput="e => Set(() => _installationText = Text(e))" />
+                                </div>
+                                <FieldError Id="iv-installation-error" Message="@Error("installation")" />
+                                <p class="field__hint" id="iv-installation-hint">
+                                    What the array fitted at the investor's own property is worth.
+                                    It is part of what they get back, but it is never cash — so it
+                                    lands whole, at whichever end of the term the structure above
+                                    says.
+                                </p>
+                            </div>
+
+                            @* ------------------------------------------------------------
+                               Not a term of the scheme, and marked as one that is not.
+                               Every figure on this page has to be worked out on some actual
+                               sum, and the minimum is only the obvious default: the profit
+                               interest scales with the placement but the installation does
+                               not, so the same scheme earns a markedly better annual return
+                               at its floor than at ten times it. Being able to move this is
+                               the only way to see that.
+                               ------------------------------------------------------------ *@
+                            <p class="terms__section" id="iv-modelling-section">Modelling</p>
+
+                            <div class="field">
+                                <label class="field__label" for="iv-placement">
+                                    Work the figures out on
+                                    <span class="field__derived">not stored</span>
+                                </label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="iv-placement" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-describedby="iv-placement-hint"
+                                           placeholder="@PlacementPlaceholder"
+                                           value="@_placementText"
+                                           @oninput="e => Set(() => SetPlacement(Text(e)))" />
+                                </div>
+                                <p class="field__hint" id="iv-placement-hint">
+                                    Leave it empty to follow the minimum.
+                                </p>
+                            </div>
+
+                            <p class="terms__aside">
+                                Nothing here is saved with the scheme. It sets the placement the
+                                rail and the charts are worked out on, which starts at the
+                                minimum. <b>@Peso.Whole(_terms.Placement)</b> is what everything
+                                below is currently answering for.
+                            </p>
+                        </div>
+
+                        @* The same footer device the console's dialogs use: what this will
+                           write to the audit trail, stated where the person commits to it. *@
+                        <div class="terms__foot">
+                            <p class="terms__note">
+                                Writes an
+                                <b>@(IsCreate ? "Investment scheme created" : "Investment scheme updated")</b>
+                                row to the activity log.
+                            </p>
+                            <div class="terms__actions">
+                                <a class="btn btn--ghost" href="manage/investment-schemes">Cancel</a>
+                                <button class="btn btn--primary" type="submit" disabled="@_saving">
+                                    @if (_saving)
+                                    {
+                                        <span class="btn__spinner" aria-hidden="true"></span>
+                                        <span>Saving</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(IsCreate ? "Save scheme" : "Save changes")</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                @* -------------------------------------------------------------------
+                   The term, drawn. The one object on this page that is not borrowed
+                   from the installment side, and the reason is in the shape itself:
+                   a hatched stretch that pays nothing, a solid one that does, and a
+                   stop marking where the lump falls. Everything it shows is said
+                   again underneath in a sentence, so it is a second telling rather
+                   than the only one.
+                   ------------------------------------------------------------------- *@
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>The term</h2>
+                        <span class="panel__note">
+                            @(_figures.IsCoherent ? $"{Peso.Years(_terms.InvestmentYears)} · {Peso.Months(_figures.TermMonths)}" : "Not set yet")
+                        </span>
+                    </div>
+
+                    @if (_figures.IsCoherent)
+                    {
+                        <div class="ribbon">
+                            @* The two stops at the ends of the track are close in colour
+                               and identical in shape, so they are named — in the same
+                               legend the charts on this page use, because it is the same
+                               job. The bands between them label themselves. *@
+                            <div class="chart-legend">
+                                @if (_terms.FreeInstallationAmt > 0)
+                                {
+                                    <span class="chart-legend__key">
+                                        <span class="chart-legend__swatch" style="background: var(--neutral)"></span>
+                                        Installation fitted
+                                    </span>
+                                }
+                                @if (_figures.TailMonths > 0)
+                                {
+                                    <span class="chart-legend__key">
+                                        <span class="chart-legend__swatch chart-legend__swatch--wash"></span>
+                                        Capital returned
+                                    </span>
+                                }
+                                @if (_terms.GracePeriodMonths > 0)
+                                {
+                                    <span class="chart-legend__key">
+                                        <span class="chart-legend__swatch chart-legend__swatch--hatched"></span>
+                                        @Peso.Months(_terms.GracePeriodMonths) of grace
+                                    </span>
+                                }
+                            </div>
+
+                            @* Three stretches on an immediate scheme and two on a deferred
+                               one, each sized by its own month count so the drawing is to
+                               scale. The capital return is a band rather than a stop
+                               because it is a stretch of time: the capital comes back over
+                               the last few months, not on one day. *@
+                            <div class="ribbon__track" aria-hidden="true">
+                                @if (_terms.Structure == SchemeStructure.Immediate && _terms.FreeInstallationAmt > 0)
+                                {
+                                    <span class="ribbon__stop ribbon__stop--installation"></span>
+                                }
+                                @if (_terms.GracePeriodMonths > 0)
+                                {
+                                    <span class="ribbon__span ribbon__span--grace"
+                                          style="flex: @_terms.GracePeriodMonths 1 0">
+                                        @GraceBandLabel
+                                    </span>
+                                }
+                                <span class="ribbon__span ribbon__span--payout"
+                                      style="flex: @InterestOnlyMonths 1 0">
+                                    @PayoutBandLabel
+                                </span>
+                                @if (_figures.TailMonths > 0)
+                                {
+                                    <span class="ribbon__span ribbon__span--tail"
+                                          style="flex: @_figures.TailMonths 1 0">
+                                        @TailBandLabel
+                                    </span>
+                                }
+                                @if (_terms.Structure == SchemeStructure.Deferred && _terms.FreeInstallationAmt > 0)
+                                {
+                                    <span class="ribbon__stop ribbon__stop--installation"></span>
+                                }
+                            </div>
+
+                            <div class="ribbon__ends" aria-hidden="true">
+                                <span>Placement</span>
+                                <span>Month @_figures.TermMonths</span>
+                            </div>
+
+                            <p class="ribbon__caption">@TermCaption</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty__title">Nothing to draw yet</p>
+                            <p class="empty__body">@TermCaption</p>
+                        </div>
+                    }
+                </section>
+
+                @* -------------------------------------------------------------------
+                   Not a growth chart. Nothing about this product grows — the whole
+                   return is fixed and scheduled before the money moves — so the
+                   question worth drawing is not how much but when. Two schemes on
+                   identical terms hand back identical totals; the only thing that
+                   separates them is where this crossing falls.
+                   ------------------------------------------------------------------- *@
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>When the capital is back</h2>
+                        <span class="panel__note">
+                            @(_figures.IsCoherent
+                                ? _figures.CapitalRecoveredMonth is { } m
+                                    ? $"Whole again in month {m} of {_figures.TermMonths}"
+                                    : "Never whole within the term"
+                                : "Nothing to work out yet")
+                        </span>
+                    </div>
+                    @* No chart at all until there is something to draw. An empty frame of
+                       axes is worse than nothing: it looks like a chart that failed rather
+                       than one that is waiting on three fields. *@
+                    @if (_figures.IsCoherent)
+                    {
+                        <div class="chart-wrap">
+                            @* The keys are written here rather than left to ApexCharts, so
+                               they are set in Archivo at the console's own size and take
+                               their colour from the same tokens the chart reads. *@
+                            <div class="chart-legend">
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--trace-deep)"></span>
+                                    Returned so far
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch chart-legend__swatch--line"
+                                          style="background: var(--ink-3)"></span>
+                                    Capital placed
+                                </span>
+                            </div>
+                            <ApexChart Kind="investmentRecovery" Data="_recoveryData" Height="300" />
+                            <p class="sr-only">@RecoverySummary</p>
+                            <p class="chart-wrap__caption">@RecoveryCaption</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty__title">Nothing to work out yet</p>
+                            <p class="empty__body">@RecoveryCaption</p>
+                        </div>
+                    }
+                </section>
+
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>What is paid, and when</h2>
+                        <span class="panel__note">
+                            @(_figures.IsCoherent
+                                ? $"{_figures.PayoutMonths} payments from month {_figures.FirstPayoutMonth}"
+                                : "Nothing to schedule yet")
+                        </span>
+                    </div>
+                    @if (_figures.IsCoherent)
+                    {
+                        <div class="chart-wrap">
+                            <div class="chart-legend">
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--trace-deep)"></span>
+                                    Capital
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--brass)"></span>
+                                    Profit
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch chart-legend__swatch--line"
+                                          style="background: var(--ink-3)"></span>
+                                    Returned so far
+                                </span>
+                            </div>
+                            <ApexChart Kind="investmentPayout" Data="_payoutData" Height="280" />
+                            <p class="chart-wrap__caption">@PayoutCaption</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty__title">Nothing to schedule yet</p>
+                            <p class="empty__body">
+                                A placement, a term and a grace period shorter than it are what
+                                a schedule is made of.
+                            </p>
+                        </div>
+                    }
+
+                    @* The chart's readable half. Everything the columns above draw is in
+                       this table, which is what an assistive reader gets and what anybody
+                       checking a figure against an agreement will actually use. *@
+                    @if (_schedule.Count > 0)
+                    {
+                        <div class="schedule-scroll">
+                            <table class="ledger ledger--schedule">
+                                <caption class="sr-only">
+                                    Every month of the term, with the capital and the profit paid
+                                    that month, the installation where it falls, and everything
+                                    returned up to that point.
+                                </caption>
+                                <thead>
+                                    <tr>
+                                        <th class="ledger__index" scope="col">#</th>
+                                        <th scope="col">Paid</th>
+                                        <th scope="col">Capital</th>
+                                        <th scope="col">Profit</th>
+                                        <th scope="col">Installation</th>
+                                        <th scope="col">Returned so far</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in _schedule)
+                                    {
+                                        <tr>
+                                            <td class="ledger__index">@(row.Month == 0 ? "—" : row.Month.ToString())</td>
+                                            <td class="ledger__figure"><b>@Cell(row.Total)</b></td>
+                                            <td class="ledger__figure">@Cell(row.Capital)</td>
+                                            <td class="ledger__figure ledger__figure--charge">@Cell(row.Profit)</td>
+                                            <td class="ledger__figure ledger__figure--balance">@Cell(row.Installation)</td>
+                                            <td class="ledger__figure">@Peso.Whole(row.CumulativeReturned)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            </div>
+
+            <aside class="board__rail">
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>What it comes to</h2>
+                        <span class="panel__note">On @Peso.Whole(_terms.Placement)</span>
+                    </div>
+                    <div class="rail">
+                        <div class="rail__group">
+                            <div class="rail__row rail__row--lead">
+                                <span class="rail__label">Each month</span>
+                                <span class="rail__value">@Figure(_figures.PeriodicReturn)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">First payment</span>
+                                <span class="rail__value rail__value--stamp">
+                                    @(_figures.IsCoherent ? $"Month {_figures.FirstPayoutMonth}" : "—")
+                                </span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Payments</span>
+                                <span class="rail__value rail__value--stamp">
+                                    @(_figures.IsCoherent ? _figures.PayoutMonths.ToString("N0") : "—")
+                                </span>
+                            </div>
+                        </div>
+
+                        @* The tail is a second monthly figure, not a footnote to the first.
+                           An investor on an immediate scheme is paid two different amounts
+                           over the term, and the rail would be hiding one of them. *@
+                        @if (_figures.TailMonths > 0)
+                        {
+                            <div class="rail__group">
+                                <p class="rail__caption">Then, as the capital comes back</p>
+                                <div class="rail__row rail__row--lead">
+                                    <span class="rail__label">Each month</span>
+                                    <span class="rail__value">@Figure(_figures.TailReturn)</span>
+                                </div>
+                                <div class="rail__row">
+                                    <span class="rail__label">From</span>
+                                    <span class="rail__value rail__value--stamp">Month @_figures.FirstTailMonth</span>
+                                </div>
+                                <div class="rail__row">
+                                    <span class="rail__label">Capital a month</span>
+                                    <span class="rail__value">@Figure(_figures.MonthlyCapital)</span>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="rail__group">
+                            <p class="rail__caption">Over the whole term</p>
+                            <div class="rail__row">
+                                <span class="rail__label">Capital returned</span>
+                                <span class="rail__value">@Figure(_figures.CapitalReturned)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Interest</span>
+                                <span class="rail__value rail__value--warn">@Figure(_figures.InterestAmount)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Installation</span>
+                                <span class="rail__value rail__value--kind">@Figure(_terms.FreeInstallationAmt)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Total returned</span>
+                                <span class="rail__value">@Figure(_figures.TotalReturned)</span>
+                            </div>
+                            @* Every payment is floored to the peso and nothing settles the
+                               difference, so the figures above sit a little under what the
+                               quoted rate describes. Named rather than hidden — somebody
+                               will add the ledger up. *@
+                            @if (_figures.RoundingRemainder >= 1)
+                            {
+                                <p class="rail__note">
+                                    Every payment is rounded down to the peso and no month makes
+                                    the difference up, so <b>@Peso.Whole(_figures.RoundingRemainder)</b>
+                                    goes undistributed across the term.
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </section>
+
+                @*
+                    Every percentage in this panel is a share of the placement, and the
+                    two components add to the total. That sounds like the least a rail
+                    could promise, and it is what the panel previously got wrong: the
+                    profit was stated in pesos including the installation, and the
+                    percentage under it was the interest alone, so 60% sat beneath a
+                    figure that was 96% of the capital.
+
+                    The fix is that nothing here is derived from the quoted rate. All
+                    three shares are worked out from the same three money figures printed
+                    in the panel above, which is what makes them add up rather than nearly
+                    add up.
+
+                    The per-annum group holds only rates that are genuinely per annum. An
+                    installation is received once, so it appears as a share of the term and
+                    never divided across the years — and there is no compound figure at
+                    all, because nothing in this product compounds.
+                *@
+                <section class="panel">
+                    <div class="panel__head"><h2>What it earns</h2></div>
+                    <div class="rail">
+                        <div class="rail__group">
+                            <div class="rail__row rail__row--lead">
+                                <span class="rail__label">Profit</span>
+                                <span class="rail__value">@Figure(_figures.TotalProfit)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Of the placement</span>
+                                <span class="rail__value rail__value--muted">@Rate(_figures.ProfitShare)</span>
+                            </div>
+                        </div>
+
+                        @* Only worth splitting when there are two parts to split. Without
+                           an installation this group would be the row above it again. *@
+                        @if (_terms.FreeInstallationAmt > 0)
+                        {
+                            <div class="rail__group">
+                                <p class="rail__caption">Where it comes from</p>
+                                <div class="rail__row">
+                                    <span class="rail__label">Interest</span>
+                                    <span class="rail__value rail__value--warn">@Rate(_figures.InterestShare)</span>
+                                </div>
+                                <div class="rail__row">
+                                    <span class="rail__label">Installation, once</span>
+                                    <span class="rail__value rail__value--kind">@Rate(_figures.InstallationShare)</span>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="rail__group">
+                            <p class="rail__caption">A year</p>
+                            <div class="rail__row">
+                                <span class="rail__label">Quoted</span>
+                                <span class="rail__value rail__value--muted">@Rate(_terms.IncomeInterest / 100m)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Effective</span>
+                                <span class="rail__value rail__value--rate">@Rate(_figures.EffectiveAnnualRate)</span>
+                            </div>
+                            <p class="rail__note">@EffectiveNote</p>
+                        </div>
+                    </div>
+                </section>
+
+                @if (!IsCreate && _original is { } record)
+                {
+                    <section class="panel">
+                        <div class="panel__head"><h2>Record</h2></div>
+                        <div class="rail">
+                            <div class="rail__group">
+                                <div class="rail__row">
+                                    <span class="rail__label">Set up</span>
+                                    <span class="rail__value rail__value--stamp">
+                                        @(record.CreatedOn?.ToString("d MMM yyyy") ?? "—")
+                                    </span>
+                                </div>
+                                <p class="rail__note">By @(record.CreatedByName ?? "Unidentified")</p>
+                            </div>
+
+                            @if (record.UpdatedOn is { } changed)
+                            {
+                                <div class="rail__group">
+                                    <div class="rail__row">
+                                        <span class="rail__label">Last changed</span>
+                                        <span class="rail__value rail__value--stamp">@changed.ToString("d MMM yyyy")</span>
+                                    </div>
+                                    <p class="rail__note">By @(record.UpdatedByName ?? "Unidentified")</p>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Null on the /new route, which is what tells this page which job it is doing.</summary>
+    [Parameter]
+    public Guid? SchemeId { get; set; }
+
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+
+    /// <summary>
+    /// A new scheme opens on a five-year term with a three-month grace period, which is
+    /// what an array takes to be built, connected and signed off. Both are placeholders
+    /// for the fund's own, and the rail says immediately what they produce.
+    /// </summary>
+    private const string DefaultTerm = "5";
+
+    private const string DefaultGrace = "3";
+
+    private string _description = string.Empty;
+    private string _minimumText = string.Empty;
+    private string _interestText = string.Empty;
+    private string _yearsText = DefaultTerm;
+    private string _graceText = DefaultGrace;
+    private string _installationText = string.Empty;
+    private string _placementText = string.Empty;
+
+    private SchemeStructure _structure = SchemeStructure.Immediate;
+
+    /// <summary>
+    /// True while the modelled placement is still following the minimum investment.
+    /// Typing into the placement field breaks the link; emptying it restores it. Without
+    /// this, raising the minimum on a half-built scheme would leave the rail answering for
+    /// a placement below the floor the form had just set.
+    /// </summary>
+    private bool _placementFollowsMinimum = true;
+
+    private InvestmentTerms _terms;
+    private InvestmentFigures _figures = new();
+    private IReadOnlyList<InvestmentPeriod> _schedule = [];
+
+    /// <summary>
+    /// The chart payloads, rebuilt whole on every recompute. A new instance is what tells
+    /// <see cref="ApexChart"/> its picture is stale — see the note on its Data parameter.
+    /// </summary>
+    private object? _payoutData;
+    private object? _recoveryData;
+
+    /// <summary>The row as the server last handed it over, for the Record panel.</summary>
+    private InvestmentSchemeRow? _original;
+
+    /// <summary>Which SchemeId the form currently holds, so a route change reloads and a re-render does not.</summary>
+    private Guid? _loadedSchemeId;
+    private bool _loadedOnce;
+
+    private bool _loading;
+    private bool _saving;
+    private string? _loadError;
+    private string? _saveError;
+    private string? _notice;
+
+    private Dictionary<string, string> _errors = [];
+
+    private bool IsCreate => SchemeId is null;
+
+    private string Title => _original?.Description is { Length: > 0 } name ? name : "Investment scheme";
+
+    /// <summary>
+    /// Nothing, when the scheme could not be opened. The panel below already says what
+    /// happened, and "changing these terms changes what is offered next" printed over a
+    /// scheme that does not exist is the page talking about something that is not there.
+    /// </summary>
+    private string Lede => _loadError is { Length: > 0 }
+        ? string.Empty
+        : IsCreate
+            ? "Set the terms once and they can be offered to any investor."
+            : "Changing these terms changes what is offered next. Capital already placed keeps the figures it was placed on.";
+
+    private string StructureHint => _structure == SchemeStructure.Immediate
+        ? "The array goes up at the start. The monthly payment is profit only, and the capital comes back whole at the end of the term."
+        : "The array goes up at the end. The monthly payment carries capital and profit together, so the capital is paid down as the term runs.";
+
+    private string PlacementPlaceholder => _terms.Placement > 0
+        ? _terms.Placement.ToString("0.##", Invariant)
+        : "0.00";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Creating then saving lands back here with an id, which is a parameter change on
+        // the same component instance rather than a new page. Reloading on the id rather
+        // than on first render is what makes both that and a plain /new -> /{guid}
+        // navigation do the right thing.
+        if (_loadedOnce && _loadedSchemeId == SchemeId)
+        {
+            return;
+        }
+
+        _loadedOnce = true;
+        _loadedSchemeId = SchemeId;
+
+        if (SchemeId is { } id)
+        {
+            await LoadAsync(id);
+        }
+        else
+        {
+            ResetForNewScheme();
+        }
+    }
+
+    private void ResetForNewScheme()
+    {
+        _description = string.Empty;
+        _minimumText = string.Empty;
+        _interestText = string.Empty;
+        _yearsText = DefaultTerm;
+        _graceText = DefaultGrace;
+        _installationText = string.Empty;
+        _placementText = string.Empty;
+        _placementFollowsMinimum = true;
+        _structure = SchemeStructure.Immediate;
+        _original = null;
+        _errors = [];
+        _saveError = null;
+        _loadError = null;
+
+        Recompute();
+    }
+
+    private async Task LoadAsync(Guid schemeId, bool quiet = false)
+    {
+        // Quiet on the reload that follows a save: the form is already showing what was
+        // stored, and dropping it to a skeleton to confirm as much would read as the page
+        // throwing the work away.
+        _loading = !quiet;
+        _loadError = null;
+        _saveError = null;
+        _errors = [];
+        StateHasChanged();
+
+        var response = await Api.GetInvestmentSchemeAsync(schemeId);
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is { } scheme)
+        {
+            _original = scheme;
+            _description = scheme.Description;
+            _structure = Enum.IsDefined(typeof(SchemeStructure), scheme.SchemeType)
+                ? (SchemeStructure)scheme.SchemeType
+                : SchemeStructure.Immediate;
+            _minimumText = scheme.MinimumInvestment.ToString("0.##", Invariant);
+            _interestText = scheme.IncomeInterest.ToString("0.##", Invariant);
+            _yearsText = scheme.InvestmentYears.ToString(Invariant);
+            _graceText = scheme.GracePeriodMonths.ToString(Invariant);
+            _installationText = scheme.FreeInstallationAmt > 0
+                ? scheme.FreeInstallationAmt.ToString("0.##", Invariant)
+                : string.Empty;
+
+            // An existing scheme opens modelled at its own minimum, and goes on following
+            // it until somebody asks for a different placement.
+            _placementText = string.Empty;
+            _placementFollowsMinimum = true;
+        }
+        else
+        {
+            _loadError = response.Message;
+            _original = null;
+        }
+
+        Recompute();
+        _loading = false;
+    }
+
+    // --- Input plumbing ----------------------------------------------------------
+
+    private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? string.Empty;
+
+    /// <summary>
+    /// Apply a keystroke and rework everything that follows from it. One entry point, so
+    /// no field can be edited without the rail, the ribbon and the charts moving with it.
+    /// </summary>
+    private void Set(Action apply)
+    {
+        apply();
+        Recompute();
+    }
+
+    private void SetMinimum(string text) => _minimumText = text;
+
+    private void SetPlacement(string text)
+    {
+        _placementText = text;
+
+        // An empty field is not a placement of zero; it is a request to go back to
+        // following the minimum, which is what the hint under the field promises.
+        _placementFollowsMinimum = string.IsNullOrWhiteSpace(text);
+    }
+
+    /// <summary>
+    /// Switching structure changes every figure on the page, which is the point — so it is
+    /// simply a recompute. Nothing is carried over or converted, because the two
+    /// structures share all six stored terms and differ only in what is done with them.
+    /// </summary>
+    private void SetStructure(SchemeStructure structure)
+    {
+        if (_structure == structure) return;
+
+        _structure = structure;
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        var minimum = ParseAmount(_minimumText);
+        var interest = ParseAmount(_interestText);
+        var years = ParseCount(_yearsText);
+        var grace = ParseCount(_graceText);
+        var installation = ParseAmount(_installationText);
+
+        var placement = _placementFollowsMinimum ? minimum : ParseAmount(_placementText);
+
+        _terms = new InvestmentTerms(placement, _structure, interest, grace, years, installation);
+        // One schedule per keystroke, shared by the figures, the ledger and both charts.
+        _schedule = InvestmentMath.BuildSchedule(_terms);
+        _figures = InvestmentMath.Summarise(_terms, _schedule);
+
+        BuildChartData();
+
+        // Once a submit has put messages on screen they follow the form: the message under
+        // a field goes as that field is corrected, and one that is still wrong keeps
+        // saying so rather than being cleared by an edit somewhere else. Before the first
+        // submit nothing is checked at all — a form that objects to a minimum you have not
+        // finished typing is a form that argues.
+        if (_errors.Count > 0)
+        {
+            _errors = Validate();
+        }
+    }
+
+    private void BuildChartData()
+    {
+        // The panels render their own empty state rather than a chart, so there is
+        // nothing to build until the terms hold together.
+        if (!_figures.IsCoherent || _schedule.Count == 0)
+        {
+            _payoutData = null;
+            _recoveryData = null;
+            return;
+        }
+
+        // Both parts of every payment go in the columns. The capital is spread across
+        // months on either structure — the whole term on a deferred scheme, the tail on an
+        // immediate one — so nothing here is the hundredfold outlier a single lump return
+        // would have been. The installation is the one thing still marked rather than
+        // drawn: it is not a payment, and on an immediate scheme it lands at month zero.
+        _payoutData = new
+        {
+            Months = _schedule.Select(r => r.Month).ToArray(),
+            Capital = _schedule.Select(r => r.Capital).ToArray(),
+            Profit = _schedule.Select(r => r.Profit).ToArray(),
+            Cumulative = _schedule.Select(r => r.CumulativeReturned).ToArray(),
+            Marks = PayoutMarks(),
+        };
+
+        var recovery = InvestmentMath.BuildRecovery(_terms, _schedule);
+        var recovered = _figures.CapitalRecoveredMonth;
+
+        _recoveryData = new
+        {
+            Returned = recovery.Select(r => new[] { (decimal)r.Month, r.Returned }).ToArray(),
+            Placed = recovery.Select(r => new[] { (decimal)r.Month, r.Placed }).ToArray(),
+            Horizon = _figures.TermMonths,
+            RecoveredMonth = recovered,
+
+            // The crossing is often in the last months of the term, where a centred
+            // label hangs off the right of the plot. The anchor is decided here for the
+            // same reason the payout chart's are: this is where the term's length is known.
+            RecoveredAnchor = recovered is { } m && m > _figures.TermMonths * 0.8 ? "end" : "middle",
+            RecoveredLabel = recovered is { } r2 ? $"Whole again · month {r2}" : null,
+        };
+    }
+
+    /// <summary>
+    /// How near an end of the term a mark has to be before its label is anchored to the
+    /// rule rather than centred on it. Centred is what reads best; it is simply not
+    /// available within a label's own width of the edge of the plot.
+    /// </summary>
+    private const double LabelEdgeMargin = 0.2;
+
+    /// <summary>
+    /// How close two marks have to be before the second is dropped to a second row, so
+    /// two labels a few months apart are not set on top of one another.
+    /// </summary>
+    private const double LabelCrowdingMargin = 0.28;
+
+    /// <summary>
+    /// The one-off events the payout chart marks with a rule: where the payments start,
+    /// and where each lump falls. The placement of each label is worked out here rather
+    /// than in <c>charts.js</c>, because this is where the term's length is known.
+    /// </summary>
+    private List<object> PayoutMarks()
+    {
+        var marks = new List<(int Month, string Text)>();
+
+        // A scheme with no grace period starts paying in month one, where the columns
+        // already start. A rule there would be pointing at the edge of the chart.
+        if (_figures.FirstPayoutMonth > 1)
+        {
+            marks.Add((_figures.FirstPayoutMonth, $"Payments start · month {_figures.FirstPayoutMonth}"));
+        }
+
+        if (_terms.FreeInstallationAmt > 0)
+        {
+            var month = _terms.Structure == SchemeStructure.Immediate ? 0 : _figures.TermMonths;
+            marks.Add((month, $"Installation · {Peso.Whole(_terms.FreeInstallationAmt)}"));
+        }
+
+        // Where the columns step up. Only on an immediate scheme — a deferred one has been
+        // returning capital since its first payment, so there is no step to point at.
+        if (_figures.TailMonths > 0 && InterestOnlyMonths > 0)
+        {
+            marks.Add((_figures.FirstTailMonth, $"Capital starts · month {_figures.FirstTailMonth}"));
+        }
+
+        var term = (double)Math.Max(1, _figures.TermMonths);
+        var placed = new List<object>(marks.Count);
+        var previous = double.NegativeInfinity;
+        var row = 0;
+
+        foreach (var (month, text) in marks.OrderBy(m => m.Month))
+        {
+            var position = month / term;
+
+            row = position - previous < LabelCrowdingMargin ? 1 - row : 0;
+            previous = position;
+
+            placed.Add(new
+            {
+                Month = month,
+                Text = text,
+                Anchor = position <= LabelEdgeMargin ? "start"
+                    : position >= 1 - LabelEdgeMargin ? "end"
+                    : "middle",
+                Row = row,
+            });
+        }
+
+        return placed;
+    }
+
+    /// <summary>
+    /// Tolerant of the separators people type into a money field. The value is read back
+    /// against the invariant culture for the same reason <c>Peso</c> writes it that way.
+    /// </summary>
+    private static decimal ParseAmount(string? text)
+    {
+        var cleaned = (text ?? string.Empty).Replace(",", string.Empty).Replace(" ", string.Empty).Trim();
+
+        return decimal.TryParse(cleaned, NumberStyles.Number, Invariant, out var value) ? value : 0m;
+    }
+
+    private static int ParseCount(string? text)
+        => int.TryParse((text ?? string.Empty).Replace(",", string.Empty).Trim(), NumberStyles.Integer, Invariant, out var value)
+            ? value
+            : 0;
+
+    // --- Display -----------------------------------------------------------------
+
+    /// <summary>
+    /// An em dash rather than a zero where the terms do not support a figure yet. Once
+    /// they hold together a zero is printed as a zero: a scheme really can carry no
+    /// installation, and "—" would read as "not worked out" instead of "none".
+    /// </summary>
+    private string Figure(decimal value)
+        => value != 0 || _figures.IsCoherent ? Peso.Whole(value) : "—";
+
+    private string Rate(decimal fraction) => _figures.IsCoherent ? Peso.Rate(fraction) : "—";
+
+    /// <summary>
+    /// A dash for a month that pays nothing, rather than a column of ₱0.00. The schedule
+    /// is mostly zeroes in its capital and installation columns by construction, and
+    /// printing them all would bury the months where something actually happens.
+    /// </summary>
+    private static string Cell(decimal value) => value == 0 ? "—" : Peso.Whole(value);
+
+    /// <summary>
+    /// A band narrower than this much of the term has no room for words, and a label
+    /// clipped to "nths, no r" is worse than no label at all — the caption underneath
+    /// says the same thing in full, so the band is left to be the sliver it is.
+    /// </summary>
+    /// <remarks>
+    /// A proportion rather than a width, because that is all Razor can know here. It is
+    /// set for the console at its normal width, where an eighth of the track holds a short
+    /// figure comfortably; below the phone breakpoint the stylesheet hides every band label
+    /// outright rather than trusting this to hold at 390px.
+    /// </remarks>
+    private const double NarrowestLabelledBand = 0.13;
+
+    private bool BandFits(int months)
+        => _figures.TermMonths > 0
+           && (double)months / _figures.TermMonths >= NarrowestLabelledBand;
+
+    /// <summary>
+    /// The paying months before the capital starts coming back. The whole payout window on
+    /// a deferred scheme, which returns capital from its very first payment.
+    /// </summary>
+    private int InterestOnlyMonths => _figures.PayoutMonths - _figures.TailMonths;
+
+    private string GraceBandLabel => !BandFits(_terms.GracePeriodMonths)
+        ? string.Empty
+        : _terms.GracePeriodMonths == 1
+            ? "1 month, no return"
+            : $"{_terms.GracePeriodMonths} months, no return";
+
+    private string PayoutBandLabel => !BandFits(InterestOnlyMonths)
+        ? string.Empty
+        : $"{InterestOnlyMonths} × {Peso.Whole(_figures.PeriodicReturn)}";
+
+    private string TailBandLabel => !BandFits(_figures.TailMonths)
+        ? string.Empty
+        : $"{_figures.TailMonths} × {Peso.Whole(_figures.TailReturn)}";
+
+    /// <summary>
+    /// The ribbon's readable half, and the only description of the term's shape that a
+    /// screen reader or a printout gets.
+    /// </summary>
+    private string TermCaption
+    {
+        get
+        {
+            if (!_figures.IsCoherent)
+            {
+                return "Set a term of at least a year, and a grace period shorter than it, "
+                    + "and the shape of the term appears here.";
+            }
+
+            var grace = _terms.GracePeriodMonths > 0
+                ? $"The first {Peso.Months(_terms.GracePeriodMonths)} pay nothing. "
+                : "Payments start in the first month. ";
+
+            if (_terms.Structure == SchemeStructure.Deferred)
+            {
+                return grace
+                    + $"After that, {_figures.PayoutMonths} payments of "
+                    + $"{Peso.Whole(_figures.PeriodicReturn)} run to month {_figures.TermMonths}, "
+                    + "carrying the capital as well as the profit"
+                    + (_terms.FreeInstallationAmt > 0
+                        ? $", and the installation — worth {Peso.Whole(_terms.FreeInstallationAmt)} — is fitted at the end."
+                        : ".");
+            }
+
+            // The capital does not come back in one piece. It is spread across the last
+            // few months, and how many of them follows from the grace period at the head:
+            // a scheme that waits three months to start paying hands the capital back over
+            // its last five.
+            var stream = $"Months {_figures.FirstPayoutMonth} to {_figures.FirstTailMonth - 1} "
+                + $"pay {Peso.Whole(_figures.PeriodicReturn)} of profit. ";
+
+            var tail = $"Over the last {Peso.Months(_figures.TailMonths)} that rises to "
+                + $"{Peso.Whole(_figures.TailReturn)}, as the capital comes back "
+                + $"{Peso.Whole(_figures.MonthlyCapital)} at a time";
+
+            return grace
+                + (InterestOnlyMonths > 0 ? stream : string.Empty)
+                + tail
+                + (_terms.FreeInstallationAmt > 0
+                    ? $". The installation — worth {Peso.Whole(_terms.FreeInstallationAmt)} — is fitted at the start."
+                    : ".");
+        }
+    }
+
+    /// <summary>
+    /// Says what the columns are and — because they are not everything — what has been
+    /// left out of them and where it went instead. A chart that quietly omits the largest
+    /// payment of the term would be lying; one that says so is showing the stream.
+    /// </summary>
+    private string PayoutCaption
+    {
+        get
+        {
+            if (!_figures.IsCoherent)
+            {
+                return "The payments appear once there is a placement and a term.";
+            }
+
+            var columns = _terms.Structure == SchemeStructure.Deferred
+                ? $"The columns are the {_figures.PayoutMonths} monthly payments of "
+                    + $"{Peso.Whole(_figures.PeriodicReturn)}, capital and profit together."
+                : $"The columns step up at month {_figures.FirstTailMonth}, from "
+                    + $"{Peso.Whole(_figures.PeriodicReturn)} of profit to "
+                    + $"{Peso.Whole(_figures.TailReturn)} once the capital starts coming back.";
+
+            var installation = _terms.FreeInstallationAmt <= 0
+                ? string.Empty
+                : _terms.Structure == SchemeStructure.Immediate
+                    ? " The installation is marked rather than drawn: it arrives before the first payment and is not one."
+                    : " The installation at the end is marked rather than drawn, and counted in the running total.";
+
+            return columns + installation;
+        }
+    }
+
+    /// <summary>
+    /// What the crossing means, which is not the same sentence for the two structures —
+    /// the whole reason this chart is worth drawing is that they cross in different
+    /// months. Both end on the same total; when the investor is square is the difference.
+    /// </summary>
+    private string RecoveryCaption
+    {
+        get
+        {
+            if (!_figures.IsCoherent)
+            {
+                return "The two lines appear once there is a placement, a term and a profit interest.";
+            }
+
+            var headline = $"{Peso.Whole(_terms.Placement)} placed comes back as "
+                + $"{Peso.Whole(_figures.TotalReturned)} by month {_figures.TermMonths}. ";
+
+            if (_figures.CapitalRecoveredMonth is not { } month)
+            {
+                return headline
+                    + "What is paid back never quite reaches what was placed, which on coherent "
+                    + "terms only happens when the rounding leaves the capital a peso or two short.";
+            }
+
+            var crossing = $"The rising line meets the placement in month {month}";
+
+            return headline + crossing + (_terms.Structure == SchemeStructure.Immediate
+                ? ", late in the term, because the capital only starts coming back over the last "
+                    + $"{Peso.Months(_figures.TailMonths)}. Everything after that point is profit."
+                : ", well before the end, because every payment has been returning capital since "
+                    + "the first one. Everything after that point is profit.");
+        }
+    }
+
+    /// <summary>
+    /// The chart's readable half. One sentence with the figures in it, so a screen reader
+    /// gets the finding rather than a description of a picture.
+    /// </summary>
+    private string RecoverySummary => !_figures.IsCoherent
+        ? "No return worked out yet."
+        : $"{Peso.Whole(_terms.Placement)} placed returns {Peso.Whole(_figures.TotalReturned)} over "
+          + $"{Peso.Years(_terms.InvestmentYears)}: {Peso.Whole(_figures.InterestAmount)} of profit interest"
+          + (_terms.FreeInstallationAmt > 0
+              ? $" and an installation worth {Peso.Whole(_terms.FreeInstallationAmt)}"
+              : string.Empty)
+          + (_figures.CapitalRecoveredMonth is { } month
+              ? $". Everything handed back reaches the {Peso.Whole(_terms.Placement)} placed in month {month} of {_figures.TermMonths}"
+              : ". What is handed back never quite reaches what was placed")
+          + $", and the return on the capital still at risk works out at {Peso.Rate(_figures.EffectiveAnnualRate)} a year.";
+
+    private string EffectiveNote => !_figures.IsCoherent
+        ? "The effective rate is worked out from the payments themselves, once there are some."
+        : _terms.Structure == SchemeStructure.Immediate
+            ? "What the capital earns while it is still at risk, worked out from the payments themselves. It sits close to the quoted rate here, because almost all of the capital stays with the fund until the tail of the term."
+            : "What the capital earns while it is still at risk, worked out from the payments themselves. It runs well above the quoted rate here, because the capital is being paid down from the first payment — the same profit against a shrinking balance.";
+
+    private string Invalid(string field) => _errors.ContainsKey(field) ? "true" : "false";
+
+    private string Describe(string field, string hintId)
+        => _errors.ContainsKey(field) ? $"iv-{field}-error {hintId}" : hintId;
+
+    private string? Error(string field) => _errors.GetValueOrDefault(field);
+
+    // --- Saving ------------------------------------------------------------------
+
+    /// <summary>
+    /// The same rules <c>InvestmentSchemeValidator</c> enforces, checked here so a mistake
+    /// is answered without a round trip. They are restated rather than shared because the
+    /// client does not reference the services project — keep the two in step.
+    /// </summary>
+    private Dictionary<string, string> Validate()
+    {
+        var errors = new Dictionary<string, string>();
+
+        var minimum = ParseAmount(_minimumText);
+        var interest = ParseAmount(_interestText);
+        var years = ParseCount(_yearsText);
+        var grace = ParseCount(_graceText);
+        var installation = ParseAmount(_installationText);
+
+        if (string.IsNullOrWhiteSpace(_description))
+        {
+            errors["description"] = "Give the scheme a name.";
+        }
+        else if (_description.Length > 200)
+        {
+            errors["description"] = "Description must be 200 characters or fewer.";
+        }
+
+        if (minimum <= 0)
+        {
+            errors["minimum"] = "Enter the least an investor may place.";
+        }
+
+        if (interest <= 0)
+        {
+            errors["interest"] = "Enter the profit interest the capital earns each year.";
+        }
+        else if (interest > 999.99m)
+        {
+            errors["interest"] = "Profit interest must be 999.99% or less.";
+        }
+
+        if (years < 1)
+        {
+            errors["years"] = "A term is at least one year.";
+        }
+        else if (years > 50)
+        {
+            errors["years"] = "A term is 50 years or fewer.";
+        }
+
+        if (grace < 0)
+        {
+            errors["grace"] = "A grace period cannot be negative.";
+        }
+        else if (years >= 1 && grace >= years * 12)
+        {
+            errors["grace"] =
+                $"{Peso.Months(grace)} of grace leaves nothing of a {years}-year term "
+                + $"({Peso.Months(years * 12)}) to pay out over. Shorten the grace period "
+                + "or lengthen the term.";
+        }
+
+        if (installation < 0)
+        {
+            errors["installation"] = "An installation amount cannot be negative.";
+        }
+
+        return errors;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_saving) return;
+
+        _saveError = null;
+        _notice = null;
+        _errors = Validate();
+
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        var request = new SaveInvestmentSchemeRequest
+        {
+            Description = _description.Trim(),
+            SchemeType = (int)_structure,
+            MinimumInvestment = ParseAmount(_minimumText),
+            IncomeInterest = ParseAmount(_interestText),
+            GracePeriodMonths = ParseCount(_graceText),
+            InvestmentYears = ParseCount(_yearsText),
+            FreeInstallationAmt = ParseAmount(_installationText),
+        };
+
+        var response = SchemeId is { } id
+            ? await Api.UpdateInvestmentSchemeAsync(id, request)
+            : await Api.CreateInvestmentSchemeAsync(request);
+
+        _saving = false;
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code != 200)
+        {
+            // The server's own sentence, verbatim — a clash on the name, or terms it
+            // refused. Nothing about the form is thrown away.
+            _saveError = response.Message;
+            return;
+        }
+
+        _notice = response.Message;
+
+        if (SchemeId is null && response.Data is { } saved && saved.SchemeId != Guid.Empty)
+        {
+            // Same component, new parameter: the notice above survives the navigation, and
+            // OnParametersSetAsync reloads the scheme from the server so what is on screen
+            // is what was stored rather than what was typed.
+            Nav.NavigateTo($"manage/investment-schemes/{saved.SchemeId}", replace: true);
+            return;
+        }
+
+        if (SchemeId is { } current)
+        {
+            await LoadAsync(current, quiet: true);
+        }
+    }
+}

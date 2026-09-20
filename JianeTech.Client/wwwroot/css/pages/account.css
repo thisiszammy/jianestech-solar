@@ -1,0 +1,279 @@
+/* ============================================================================
+   account.css — the door, for the screens reached from an email.
+
+   Structurally the same two fields as login.css: the fixed navy panel, and the
+   ledger paper. The differences are all subtractions. There is no circuit
+   field, because the one orchestrated moment in this console belongs to the
+   sign-in page; there are no scheme terms, because nobody arriving from an
+   invitation is deciding whether to be here.
+
+   What is added instead is the account rail, on the paper side directly above
+   the fields — the same label/leader/value treatment the email carried, in the
+   same order, so the page reads as the second half of the message rather than
+   as a new place.
+   ========================================================================== */
+
+.account {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
+    min-height: 100dvh;
+}
+
+/* --- Left: the panel ----------------------------------------------------- */
+/* --focus flips to --gold-lit here via the rule in tokens.css that covers the
+   dark fields; this panel is listed there alongside .login__panel. */
+.account__panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--s-10);
+    padding: var(--s-10);
+    background: var(--panel-dark);
+    color: #fff;
+
+    /* The same edge the sidebar and the sign-in panel carry. In dark mode the
+       panel and the paper are close enough that without it the split reads as
+       a rendering seam rather than as two surfaces meeting. */
+    border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.account__lockup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-3);
+}
+
+.account__seal {
+    display: block;
+    width: clamp(104px, 13vw, 156px);
+    height: auto;
+
+    /* The artwork is a physical badge, so it gets the shadow a badge casts on
+       the panel it is fixed to. The only drop shadow on the page. */
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));
+}
+
+.account__division {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    font-stretch: var(--stretch-wordmark);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+/* Everything the panel says, as one block against the foot of the panel. */
+.account__say {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+}
+
+/* The statement, matching the sentence the email led with. One setting, large,
+   tight, no accented word. */
+.account__statement {
+    max-width: 17ch;
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+}
+
+.account__panel-note {
+    max-width: 38ch;
+    padding-top: var(--s-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    font-variant-numeric: var(--numeric);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Right: the paper ---------------------------------------------------- */
+.account__side {
+    display: grid;
+    place-items: center;
+    padding: var(--s-10) var(--s-6);
+    background: var(--paper);
+}
+
+.account__form {
+    width: 100%;
+    max-width: 380px;
+}
+
+.account__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.account__lede {
+    margin-top: var(--s-2);
+    max-width: 44ch;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--ink-3);
+}
+
+.account__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+}
+
+/* The account rail. .rail carries console padding meant for a panel it is
+   inset in; here it sits directly on the paper, so the padding comes off and
+   a rule takes over the job of separating it from the fields below. */
+.account__rail {
+    margin-top: var(--s-6);
+    padding: 0 0 var(--s-4);
+    border-bottom: 1px solid var(--border);
+}
+
+/* --- The password rules -------------------------------------------------- */
+/* Exactly the two things the server enforces, each as a dot beside its label —
+   never colour alone. A strength meter was the obvious thing to put here and
+   would have been a lie: the policy is a length and a match, and scoring
+   entropy on screen would imply rules that nothing actually checks. */
+.account__rules {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.account__rule {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+}
+
+.account__rule--met {
+    color: var(--success);
+}
+
+.account__foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    color: var(--ink-4);
+}
+
+.account__foot a {
+    color: var(--trace-deep);
+    text-decoration: underline;
+}
+
+/* A link that stands where a button would, under the form. Same target size as
+   a control, because on a phone that is what it has to be. */
+.account__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--trace-deep);
+    text-decoration: underline;
+}
+
+/* --- Waiting, and the states that are not a form ------------------------- */
+/* The link is checked before the form is drawn, so nobody fills in a password
+   the server was always going to refuse. The skeleton stands in for the rail
+   and the fields it is about to replace, at their heights, so the panel does
+   not jump when the answer arrives. */
+.account__wait {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+}
+
+/* A refused or spent link, and the done state. Left-aligned rather than
+   centred like .empty: this sits in a 380px column where centring would read
+   as a dialog rather than as the page answering. */
+.account__state {
+    margin-top: var(--s-6);
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--border);
+}
+
+.account__state-title {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--text-md);
+    font-weight: 600;
+}
+
+.account__state-body {
+    margin-top: var(--s-2);
+    max-width: 44ch;
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    color: var(--ink-3);
+}
+
+.account__state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-5);
+}
+
+/* --- Narrow: the panel becomes a header band ----------------------------- */
+@media (max-width: 899px) {
+    .account {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .account__panel {
+        gap: var(--s-5);
+        padding: var(--s-6) var(--s-4);
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    /* Seal and division share a line here; stacked, they push the form below
+       the fold on a phone, and the form is the job on this screen. */
+    .account__lockup {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-4);
+    }
+
+    .account__statement {
+        max-width: none;
+        font-size: var(--text-lg);
+    }
+
+    /* The expiry is repeated in the rail on the paper side, so the panel can
+       drop it rather than spend a phone's first screen on it. */
+    .account__panel-note {
+        display: none;
+    }
+
+    .account__side {
+        padding: var(--s-8) var(--s-4);
+        place-items: start center;
+    }
+}
+
+@media (min-width: 1280px) {
+    .account__panel {
+        padding: var(--s-12);
+    }
+
+    .account__statement {
+        font-size: var(--text-3xl);
+    }
+}

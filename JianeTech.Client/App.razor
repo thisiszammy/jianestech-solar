@@ -1,0 +1,21 @@
+@*
+    Router. Every page except sign-in carries [Authorize]; AuthorizeRouteView
+    sends an unauthenticated visitor to /login instead of rendering an empty
+    console, and CascadingAuthenticationState puts the state in reach of any
+    component that needs it.
+*@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(ConsoleLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+                <Authorizing>
+                    <AuthGate />
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+    </Router>
+</CascadingAuthenticationState>

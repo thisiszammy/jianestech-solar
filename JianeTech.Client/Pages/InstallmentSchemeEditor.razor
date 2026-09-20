@@ -1,0 +1,1078 @@
+@page "/manage/installment-schemes/new"
+@page "/manage/installment-schemes/{SchemeId:int}"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using System.Globalization
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Schemes
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+
+@*
+    The scheme configuration page.
+
+    A scheme is five numbers, and every one of them is meaningless on its own. What
+    matters is what they come to together — what the credit costs, what the household
+    hands over each month, and which households the scheme should be put in front of. So
+    this is not a form with a preview attached: the form sits in the spine and the
+    consequences sit in the rail beside it, sticky, recomputed on every keystroke. You
+    watch the figure you care about move as you type the figure that moves it.
+
+    The two panels below the form are the longer read — what the household has handed
+    over as the term runs, and where each payment goes. They are what you check before
+    committing, which is why the commit is under the form and not under them.
+
+    One thing this page used to get wrong, and the reason for half its wording: the
+    electricity bill is not paid to the fund and does not pay the instalment. It is
+    advisory — the figure that says which households to offer the scheme to. Nothing on
+    this page may net one against the other.
+*@
+
+<PageTitle>@(IsCreate ? "New scheme" : Title) · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <a class="page-head__back" href="manage/installment-schemes">
+            <Icon Name="prev" Size="14" />
+            Installment schemes
+        </a>
+        <h1>@(IsCreate ? "New installment scheme" : Title)</h1>
+        @if (Lede is { Length: > 0 })
+        {
+            <p class="page-head__sub">@Lede</p>
+        }
+    </div>
+    @if (!IsCreate && _original is { } loaded)
+    {
+        <span class="page-head__stamp">
+            <span class="dot dot--@loaded.StatusTone"></span>
+            @loaded.Status
+        </span>
+    }
+</header>
+
+<div class="page-body">
+    @if (_notice is { Length: > 0 })
+    {
+        <div class="alert alert--success" role="status" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="activity" Size="17" /></span>
+            <span>@_notice</span>
+            <button class="alert__dismiss" type="button" aria-label="Dismiss"
+                    @onclick="() => _notice = null">
+                <Icon Name="close" Size="14" />
+            </button>
+        </div>
+    }
+
+    @if (_loadError is { Length: > 0 })
+    {
+        <section class="panel">
+            <div class="empty">
+                <p class="empty__title">This scheme could not be opened</p>
+                <p class="empty__body">@_loadError</p>
+                <a class="btn btn--ghost" href="manage/installment-schemes"
+                   style="margin-top: var(--s-2)">Back to the register</a>
+            </div>
+        </section>
+    }
+    else if (_loading)
+    {
+        <section class="panel">
+            <div style="padding: var(--s-5)">
+                @for (var i = 0; i < 6; i++)
+                {
+                    <div class="skeleton" style="height: 44px; margin-bottom: var(--s-4)"></div>
+                }
+            </div>
+        </section>
+    }
+    else
+    {
+        <div class="board">
+            <div class="board__spine">
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>Terms</h2>
+                        <span class="panel__note">Five figures. Everything else is read off them.</span>
+                    </div>
+
+                    @* A plain form rather than an EditForm. Every field here feeds an
+                       arithmetic that has to answer on each keystroke, and EditForm's
+                       inputs bind on change — the rail would sit one field behind the
+                       reader all the way down the page. The checks below mirror
+                       InstallmentSchemeValidator exactly; the server stays the authority. *@
+                    <form class="terms" @onsubmit="SubmitAsync" @onsubmit:preventDefault novalidate>
+                        @if (_saveError is { Length: > 0 })
+                        {
+                            <div class="alert alert--error" role="alert"
+                                 style="margin: var(--s-5) var(--s-5) 0">
+                                <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+                                <span>@_saveError</span>
+                            </div>
+                        }
+
+                        <div class="terms__grid">
+                            <div class="field field--wide">
+                                <label class="field__label" for="sc-description">
+                                    What this scheme is called<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <input class="field__input" id="sc-description" type="text"
+                                       maxlength="200" autocomplete="off" disabled="@_saving"
+                                       aria-invalid="@Invalid("description")"
+                                       aria-describedby="@Describe("description", "sc-description-hint")"
+                                       placeholder="Standard 24-month, 3kW"
+                                       value="@_description"
+                                       @oninput="e => Set(() => _description = Text(e))" />
+                                <FieldError Id="sc-description-error" Message="@Error("description")" />
+                                <p class="field__hint" id="sc-description-hint">
+                                    How it appears wherever the scheme is offered. Two schemes on
+                                    offer cannot share a name.
+                                </p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-principal">
+                                    Principal amount<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="sc-principal" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("principal")"
+                                           aria-describedby="@Describe("principal", "sc-principal-hint")"
+                                           placeholder="0.00"
+                                           value="@_principalText"
+                                           @oninput="e => Set(() => _principalText = Text(e))" />
+                                </div>
+                                <FieldError Id="sc-principal-error" Message="@Error("principal")" />
+                                <p class="field__hint" id="sc-principal-hint">The cash price of the installation.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-down">Down payment</label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="sc-down" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("down")"
+                                           aria-describedby="@Describe("down", "sc-down-hint")"
+                                           placeholder="0.00"
+                                           value="@_downText"
+                                           @oninput="e => Set(() => _downText = Text(e))" />
+                                </div>
+                                <FieldError Id="sc-down-error" Message="@Error("down")" />
+                                <p class="field__hint" id="sc-down-hint">Paid before the installation goes up.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-months">
+                                    Term<span class="field__req" aria-hidden="true">*</span>
+                                </label>
+                                <div class="field__money field__money--suffix">
+                                    <input class="field__input" id="sc-months" type="text"
+                                           inputmode="numeric" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("months")"
+                                           aria-describedby="@Describe("months", "sc-months-hint")"
+                                           placeholder="24"
+                                           value="@_monthsText"
+                                           @oninput="e => Set(() => _monthsText = Text(e))" />
+                                    <span class="field__money-suffix" aria-hidden="true">months</span>
+                                </div>
+                                <FieldError Id="sc-months-error" Message="@Error("months")" />
+                                <p class="field__hint" id="sc-months-hint">How many monthly payments the household makes.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-bill">Recommended for bills up to</label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="sc-bill" type="text"
+                                           inputmode="decimal" autocomplete="off" disabled="@_saving"
+                                           aria-invalid="@Invalid("bill")"
+                                           aria-describedby="@Describe("bill", "sc-bill-hint")"
+                                           placeholder="0.00"
+                                           value="@_billText"
+                                           @oninput="e => Set(() => _billText = Text(e))" />
+                                </div>
+                                <FieldError Id="sc-bill-error" Message="@Error("bill")" />
+                                <p class="field__hint" id="sc-bill-hint">
+                                    The most a household on this scheme is already billed for
+                                    electricity each month. It decides who the scheme is offered
+                                    to and nothing else: no part of the instalment is settled
+                                    from it.
+                                </p>
+                            </div>
+
+                            @* ------------------------------------------------------------
+                               The payment and the rate are one number seen two ways: fix
+                               either and the other follows. So rather than ask for both and
+                               let them contradict each other, the form asks which one is
+                               being set and derives the other in front of the reader. The
+                               derived field stays on screen, read-only, because it is the
+                               answer — hiding it would mean the page quietly knew something
+                               the person configuring the scheme did not.
+                               ------------------------------------------------------------ *@
+                            <p class="terms__section" id="sc-pricing">Pricing</p>
+
+                            <div class="field field--wide">
+                                <span class="field__label" id="sc-basis-label">What are you setting?</span>
+                                <div class="basis" role="radiogroup" aria-labelledby="sc-basis-label">
+                                    <label class="basis__option">
+                                        <input type="radio" name="sc-basis" disabled="@_saving"
+                                               checked="@(_basis == PricingBasis.Rate)"
+                                               @onchange="() => SetBasis(PricingBasis.Rate)" />
+                                        <span>The add-on rate</span>
+                                    </label>
+                                    <label class="basis__option">
+                                        <input type="radio" name="sc-basis" disabled="@_saving"
+                                               checked="@(_basis == PricingBasis.Payment)"
+                                               @onchange="() => SetBasis(PricingBasis.Payment)" />
+                                        <span>The monthly payment</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-rate">
+                                    Add-on rate, per month
+                                    @if (_basis == PricingBasis.Payment)
+                                    {
+                                        <span class="field__derived">worked out</span>
+                                    }
+                                </label>
+                                <div class="field__money field__money--suffix">
+                                    <input class="field__input" id="sc-rate" type="text"
+                                           inputmode="decimal" autocomplete="off"
+                                           disabled="@_saving"
+                                           readonly="@(_basis == PricingBasis.Payment)"
+                                           aria-describedby="sc-rate-hint"
+                                           placeholder="1.5"
+                                           value="@_rateText"
+                                           @oninput="e => Set(() => _rateText = Text(e))" />
+                                    <span class="field__money-suffix" aria-hidden="true">% a month</span>
+                                </div>
+                                <p class="field__hint" id="sc-rate-hint">
+                                    The whole charge worked out on the opening balance and split
+                                    evenly across the term — how instalment terms are quoted here.
+                                </p>
+                            </div>
+
+                            <div class="field">
+                                <label class="field__label" for="sc-payment">
+                                    Monthly payment<span class="field__req" aria-hidden="true">*</span>
+                                    @if (_basis == PricingBasis.Rate)
+                                    {
+                                        <span class="field__derived">worked out</span>
+                                    }
+                                </label>
+                                <div class="field__money">
+                                    <span class="field__money-sign" aria-hidden="true">@Peso.Sign</span>
+                                    <input class="field__input" id="sc-payment" type="text"
+                                           inputmode="decimal" autocomplete="off"
+                                           disabled="@_saving"
+                                           readonly="@(_basis == PricingBasis.Rate)"
+                                           aria-invalid="@Invalid("payment")"
+                                           aria-describedby="@Describe("payment", "sc-payment-hint")"
+                                           placeholder="0.00"
+                                           value="@_paymentText"
+                                           @oninput="e => Set(() => _paymentText = Text(e))" />
+                                </div>
+                                <FieldError Id="sc-payment-error" Message="@Error("payment")" />
+                                <p class="field__hint" id="sc-payment-hint">
+                                    This is the figure that is stored. The rate above is read back
+                                    off it whenever the scheme is opened again.
+                                </p>
+                            </div>
+                        </div>
+
+                        @* The same footer device the console's dialogs use: what this will
+                           write to the audit trail, stated where the person commits to it. *@
+                        <div class="terms__foot">
+                            <p class="terms__note">
+                                Writes a <b>@(IsCreate ? "Scheme created" : "Scheme updated")</b>
+                                row to the activity log.
+                            </p>
+                            <div class="terms__actions">
+                                <a class="btn btn--ghost" href="manage/installment-schemes">Cancel</a>
+                                <button class="btn btn--primary" type="submit" disabled="@_saving">
+                                    @if (_saving)
+                                    {
+                                        <span class="btn__spinner" aria-hidden="true"></span>
+                                        <span>Saving</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(IsCreate ? "Save scheme" : "Save changes")</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>What the household pays</h2>
+                        <span class="panel__note">Running total, from the day it goes up</span>
+                    </div>
+                    @* No chart at all until there is something to draw. An empty frame of
+                       axes is worse than nothing: it looks like a chart that failed rather
+                       than one that is waiting on three fields. *@
+                    @if (_figures.IsCoherent)
+                    {
+                        <div class="chart-wrap">
+                            @* The keys are written here rather than left to ApexCharts, so
+                               they are set in Archivo at the console's own size and take
+                               their colour from the same tokens the chart reads. *@
+                            <div class="chart-legend">
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--trace-deep)"></span>
+                                    Paid so far
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch chart-legend__swatch--line"
+                                          style="background: var(--ink-3)"></span>
+                                    Cash price of the installation
+                                </span>
+                            </div>
+                            <ApexChart Kind="payments" Data="_paymentsData" Height="300" />
+                            <p class="sr-only">@PaymentsSummary</p>
+                            <p class="chart-wrap__caption">@PaymentsCaption</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty__title">Nothing to draw yet</p>
+                            <p class="empty__body">@PaymentsCaption</p>
+                        </div>
+                    }
+                </section>
+
+                <section class="panel">
+                    <div class="panel__head">
+                        <h2>Payment schedule</h2>
+                        <span class="panel__note">
+                            @(_figures.IsCoherent
+                                ? $"{Peso.Months(_terms.MonthPeriods)} at {Peso.Rate(_figures.EffectiveMonthlyRate)} a month, effective"
+                                : "Nothing to schedule yet")
+                        </span>
+                    </div>
+                    @if (_figures.IsCoherent)
+                    {
+                        <div class="chart-wrap">
+                            <div class="chart-legend">
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--trace-deep)"></span>
+                                    Capital
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch" style="background: var(--brass)"></span>
+                                    Charge
+                                </span>
+                                <span class="chart-legend__key">
+                                    <span class="chart-legend__swatch chart-legend__swatch--line"
+                                          style="background: var(--ink-3)"></span>
+                                    Still owed
+                                </span>
+                            </div>
+                            <ApexChart Kind="schedule" Data="_scheduleData" Height="280" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty__title">Nothing to schedule yet</p>
+                            <p class="empty__body">
+                                A principal above the down payment, a term and a monthly payment
+                                are what a schedule is made of.
+                            </p>
+                        </div>
+                    }
+
+                    @* The chart's readable half. Everything the columns above draw is in
+                       this table, which is what an assistive reader gets and what anybody
+                       checking a figure against an agreement will actually use. *@
+                    @if (_schedule.Count > 0)
+                    {
+                        <div class="schedule-scroll">
+                            <table class="ledger ledger--schedule">
+                                <caption class="sr-only">
+                                    Every payment of the term, with the part that pays down the
+                                    balance, the part that is the cost of the credit, and what is
+                                    still owed afterwards.
+                                </caption>
+                                <thead>
+                                    <tr>
+                                        <th class="ledger__index" scope="col">#</th>
+                                        <th scope="col">Payment</th>
+                                        <th scope="col">Capital</th>
+                                        <th scope="col">Charge</th>
+                                        <th scope="col">Still owed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in _schedule)
+                                    {
+                                        <tr>
+                                            <td class="ledger__index">@row.Month</td>
+                                            <td class="ledger__figure"><b>@Peso.Exact(row.Payment)</b></td>
+                                            <td class="ledger__figure">@Peso.Exact(row.Capital)</td>
+                                            <td class="ledger__figure ledger__figure--charge">@Peso.Exact(row.Charge)</td>
+                                            <td class="ledger__figure ledger__figure--balance">@Peso.Exact(row.ClosingBalance)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            </div>
+
+            <aside class="board__rail">
+                <section class="panel">
+                    <div class="panel__head"><h2>What it comes to</h2></div>
+                    <div class="rail">
+                        <div class="rail__group">
+                            <div class="rail__row rail__row--lead">
+                                <span class="rail__label">Each month</span>
+                                <span class="rail__value">@Figure(_terms.PeriodicPayment)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Paid up front</span>
+                                <span class="rail__value">@Figure(_terms.DownPayment)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Amount financed</span>
+                                <span class="rail__value">@Figure(_figures.AmountFinanced)</span>
+                            </div>
+                        </div>
+
+                        <div class="rail__group">
+                            <p class="rail__caption">Over the whole term</p>
+                            <div class="rail__row">
+                                <span class="rail__label">Total of payments</span>
+                                <span class="rail__value">@Figure(_figures.TotalOfPayments)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Cost of the credit</span>
+                                <span class="rail__value rail__value--warn">@Figure(_figures.FinanceCharge)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Total price</span>
+                                <span class="rail__value">@Figure(_figures.TotalContractPrice)</span>
+                            </div>
+                        </div>
+
+                        @* The quoted rate and the real one, in that order and never one
+                           without the other: an add-on rate is always the smaller number,
+                           and printing it alone is how a scheme gets sold as cheaper than
+                           it is. *@
+                        <div class="rail__group">
+                            <p class="rail__caption">What the credit costs</p>
+                            <div class="rail__row">
+                                <span class="rail__label">Add-on, a month</span>
+                                <span class="rail__value">@Rate(_figures.AddOnMonthlyRate)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Effective, a month</span>
+                                <span class="rail__value rail__value--muted">@Rate(_figures.EffectiveMonthlyRate)</span>
+                            </div>
+                            <div class="rail__row">
+                                <span class="rail__label">Effective, a year</span>
+                                <span class="rail__value rail__value--warn">@Rate(_figures.EffectiveAnnualRate)</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                @* The advisory band. It answers "who do we offer this to?", and it is the
+                   one panel on the page that is about somebody other than the household
+                   already on the scheme. It carries no difference between the bill and the
+                   instalment — the two are not settled against each other, and a figure
+                   subtracting one from the other is what made this page wrong before. *@
+                <section class="panel">
+                    <div class="panel__head"><h2>Who it&rsquo;s for</h2></div>
+                    <div class="rail">
+                        @if (_terms.ReferenceBillAmount <= 0)
+                        {
+                            <p class="rail__empty">
+                                Set the bill this scheme is pitched at, and it can be
+                                recommended to the households it suits. Without one it is
+                                offered on nothing but its terms.
+                            </p>
+                        }
+                        else
+                        {
+                            <div class="rail__group">
+                                @* Whole pesos, where every other money row in the rail
+                                   carries centavos. The difference is the point: the rows
+                                   beside it are contract figures and this one is a
+                                   guideline, quoted the way the register quotes it and
+                                   the way the note underneath says it. *@
+                                <div class="rail__row rail__row--lead">
+                                    <span class="rail__label">Bills up to</span>
+                                    <span class="rail__value">@Peso.Whole(_terms.ReferenceBillAmount)</span>
+                                </div>
+                                <div class="rail__row">
+                                    <span class="rail__label">Instalment</span>
+                                    <span class="rail__value">@Figure(_terms.PeriodicPayment)</span>
+                                </div>
+                                <div class="rail__row">
+                                    <span class="rail__label">Of that bill</span>
+                                    <span class="rail__value @(_figures.InstalmentShareOfBill > 1 ? "rail__value--warn" : "rail__value--muted")">
+                                        @Share(_figures.InstalmentShareOfBill)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="rail__group">
+                                <p class="rail__note">@SuitabilityNote</p>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                @if (!IsCreate && _original is { } record)
+                {
+                    <section class="panel">
+                        <div class="panel__head"><h2>Record</h2></div>
+                        <div class="rail">
+                            <div class="rail__group">
+                                <div class="rail__row">
+                                    <span class="rail__label">Set up</span>
+                                    <span class="rail__value rail__value--stamp">
+                                        @(record.CreatedOn?.ToString("d MMM yyyy") ?? "—")
+                                    </span>
+                                </div>
+                                <p class="rail__note">By @(record.CreatedByName ?? "Unidentified")</p>
+                            </div>
+
+                            @if (record.UpdatedOn is { } changed)
+                            {
+                                <div class="rail__group">
+                                    <div class="rail__row">
+                                        <span class="rail__label">Last changed</span>
+                                        <span class="rail__value rail__value--stamp">@changed.ToString("d MMM yyyy")</span>
+                                    </div>
+                                    <p class="rail__note">By @(record.UpdatedByName ?? "Unidentified")</p>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Null on the /new route, which is what tells this page which job it is doing.</summary>
+    [Parameter]
+    public int? SchemeId { get; set; }
+
+    /// <summary>Which of the two coupled figures the person is setting; the other follows.</summary>
+    private enum PricingBasis { Rate, Payment }
+
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+
+    /// <summary>
+    /// A new scheme opens on a rate rather than a payment, because a payment is not a
+    /// figure anybody has in mind — it is the answer. The starting rate is a placeholder
+    /// for the fund's own, and the rail says immediately what it produces.
+    /// </summary>
+    private const string DefaultRate = "1.5";
+
+    private const string DefaultTerm = "24";
+
+    private string _description = string.Empty;
+    private string _principalText = string.Empty;
+    private string _downText = "0";
+    private string _monthsText = DefaultTerm;
+    private string _billText = string.Empty;
+    private string _paymentText = string.Empty;
+    private string _rateText = DefaultRate;
+
+    private PricingBasis _basis = PricingBasis.Rate;
+
+    private SchemeTerms _terms;
+    private SchemeFigures _figures = new();
+    private IReadOnlyList<SchedulePeriod> _schedule = [];
+
+    /// <summary>
+    /// The chart payloads, rebuilt whole on every recompute. A new instance is what tells
+    /// <see cref="ApexChart"/> its picture is stale — see the note on its Data parameter.
+    /// </summary>
+    private object? _paymentsData;
+    private object? _scheduleData;
+
+    /// <summary>The row as the server last handed it over, for the Record panel.</summary>
+    private SchemeRow? _original;
+
+    /// <summary>Which SchemeId the form currently holds, so a route change reloads and a re-render does not.</summary>
+    private int? _loadedSchemeId;
+    private bool _loadedOnce;
+
+    private bool _loading;
+    private bool _saving;
+    private string? _loadError;
+    private string? _saveError;
+    private string? _notice;
+
+    private Dictionary<string, string> _errors = [];
+
+    private bool IsCreate => SchemeId is null;
+
+    private string Title => _original?.Description is { Length: > 0 } name ? name : $"Scheme {SchemeId}";
+
+    /// <summary>
+    /// Nothing, when the scheme could not be opened. The panel below already says what
+    /// happened, and "changing these terms changes what is offered next" printed over a
+    /// scheme that does not exist is the page talking about something that is not there.
+    /// The heading keeps the id, because the id is what was asked for.
+    /// </summary>
+    private string Lede => _loadError is { Length: > 0 }
+        ? string.Empty
+        : IsCreate
+            ? "Set the terms once and they can be offered to any household."
+            : "Changing these terms changes what is offered next. Agreements already signed keep the figures they were signed on.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Creating then saving lands back here with an id, which is a parameter change on
+        // the same component instance rather than a new page. Reloading on the id rather
+        // than on first render is what makes both that and a plain /new -> /3 navigation
+        // do the right thing.
+        if (_loadedOnce && _loadedSchemeId == SchemeId)
+        {
+            return;
+        }
+
+        _loadedOnce = true;
+        _loadedSchemeId = SchemeId;
+
+        if (SchemeId is { } id)
+        {
+            await LoadAsync(id);
+        }
+        else
+        {
+            ResetForNewScheme();
+        }
+    }
+
+    private void ResetForNewScheme()
+    {
+        _description = string.Empty;
+        _principalText = string.Empty;
+        _downText = "0";
+        _monthsText = DefaultTerm;
+        _billText = string.Empty;
+        _paymentText = string.Empty;
+        _rateText = DefaultRate;
+        _basis = PricingBasis.Rate;
+        _original = null;
+        _errors = [];
+        _saveError = null;
+        _loadError = null;
+
+        Recompute();
+    }
+
+    private async Task LoadAsync(int schemeId, bool quiet = false)
+    {
+        // Quiet on the reload that follows a save: the form is already showing what was
+        // stored, and dropping it to a skeleton to confirm as much would read as the page
+        // throwing the work away.
+        _loading = !quiet;
+        _loadError = null;
+        _saveError = null;
+        _errors = [];
+        StateHasChanged();
+
+        var response = await Api.GetSchemeAsync(schemeId);
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is { } scheme)
+        {
+            _original = scheme;
+            _description = scheme.Description;
+            _principalText = scheme.PrincipalAmount.ToString("0.##", Invariant);
+            _downText = scheme.DownPayment.ToString("0.##", Invariant);
+            _monthsText = scheme.MonthPeriods.ToString(Invariant);
+            _billText = scheme.ReferenceBillAmount > 0
+                ? scheme.ReferenceBillAmount.ToString("0.##", Invariant)
+                : string.Empty;
+            _paymentText = scheme.PeriodicPayment.ToString("0.00", Invariant);
+
+            // The payment is what is stored, so it is what an existing scheme opens on.
+            // The rate is read back off it by the first recompute.
+            _basis = PricingBasis.Payment;
+        }
+        else
+        {
+            _loadError = response.Message;
+            _original = null;
+        }
+
+        Recompute();
+        _loading = false;
+    }
+
+    // --- Input plumbing ----------------------------------------------------------
+
+    private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? string.Empty;
+
+    /// <summary>
+    /// Apply a keystroke and rework everything that follows from it. One entry point, so
+    /// no field can be edited without the rail and the charts moving with it.
+    /// </summary>
+    private void Set(Action apply)
+    {
+        apply();
+        Recompute();
+    }
+
+    /// <summary>
+    /// Switching which figure is authoritative must not move any number on screen — the
+    /// derived value is already correct, so it simply becomes the one being typed. Anything
+    /// else would mean the payment jumped the moment you asked to edit it.
+    /// </summary>
+    private void SetBasis(PricingBasis basis)
+    {
+        if (_basis == basis) return;
+
+        _basis = basis;
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        var principal = ParseAmount(_principalText);
+        var down = ParseAmount(_downText);
+        var months = ParseMonths(_monthsText);
+        var bill = ParseAmount(_billText);
+        var financed = principal - down;
+
+        decimal payment;
+
+        if (_basis == PricingBasis.Rate)
+        {
+            payment = SchemeMath.PaymentFromAddOnRate(financed, ParseAmount(_rateText) / 100m, months);
+            _paymentText = payment > 0 ? payment.ToString("0.00", Invariant) : string.Empty;
+        }
+        else
+        {
+            payment = ParseAmount(_paymentText);
+        }
+
+        _terms = new SchemeTerms(principal, down, payment, months, bill);
+        _figures = SchemeMath.Summarise(_terms);
+
+        if (_basis == PricingBasis.Payment)
+        {
+            // Four places, not two: an add-on rate read back off a rounded payment is
+            // rarely a round number, and rounding it here would produce a rate that does
+            // not reproduce the payment it came from.
+            _rateText = _figures.IsCoherent
+                ? (_figures.AddOnMonthlyRate * 100).ToString("0.####", Invariant)
+                : string.Empty;
+        }
+
+        _schedule = SchemeMath.BuildSchedule(_terms, _figures);
+
+        BuildChartData();
+
+        // Once a submit has put messages on screen they follow the form: the message under
+        // a field goes as that field is corrected, and one that is still wrong keeps
+        // saying so rather than being cleared by an edit somewhere else. Before the first
+        // submit nothing is checked at all — a form that objects to a principal you have
+        // not finished typing is a form that argues.
+        if (_errors.Count > 0)
+        {
+            _errors = Validate();
+        }
+    }
+
+    private void BuildChartData()
+    {
+        // The panels render their own empty state rather than a chart, so there is
+        // nothing to build until the terms hold together.
+        if (!_figures.IsCoherent)
+        {
+            _paymentsData = null;
+            _scheduleData = null;
+            return;
+        }
+
+        var progress = SchemeMath.BuildPaymentProgress(_terms);
+        var crossing = _figures.CashPriceMonth;
+
+        _paymentsData = new
+        {
+            PaidSoFar = progress.Select(r => new[] { r.Month, decimal.Round(r.PaidSoFar, 2) }).ToArray(),
+            CashPrice = progress.Select(r => new[] { r.Month, decimal.Round(r.CashPrice, 2) }).ToArray(),
+            Horizon = _terms.MonthPeriods,
+            CashPriceMonth = crossing,
+
+            // Where the mark's label sits is decided here, because here is where the
+            // term's length is known: centred is what reads best, and it is simply not
+            // available within a label's own width of either end of the plot.
+            CashPriceAnchor = crossing switch
+            {
+                0 => "start",
+                { } m when m > _terms.MonthPeriods * 0.8 => "end",
+                _ => "middle",
+            },
+            CashPriceLabel = crossing is { } month ? $"Cash price covered · month {month}" : null,
+        };
+
+        _scheduleData = new
+        {
+            Months = _schedule.Select(r => r.Month).ToArray(),
+            Capital = _schedule.Select(r => r.Capital).ToArray(),
+            Charge = _schedule.Select(r => r.Charge).ToArray(),
+            Balance = _schedule.Select(r => r.ClosingBalance).ToArray(),
+        };
+    }
+
+    /// <summary>
+    /// Tolerant of the separators people type into a money field. The value is read back
+    /// against the invariant culture for the same reason <c>Peso</c> writes it that way.
+    /// </summary>
+    private static decimal ParseAmount(string? text)
+    {
+        var cleaned = (text ?? string.Empty).Replace(",", string.Empty).Replace(" ", string.Empty).Trim();
+
+        return decimal.TryParse(cleaned, NumberStyles.Number, Invariant, out var value) ? value : 0m;
+    }
+
+    private static int ParseMonths(string? text)
+        => int.TryParse((text ?? string.Empty).Replace(",", string.Empty).Trim(), NumberStyles.Integer, Invariant, out var value)
+            ? value
+            : 0;
+
+    // --- Display -----------------------------------------------------------------
+
+    /// <summary>
+    /// An em dash rather than a zero where the terms do not support a figure yet. Once
+    /// they hold together a zero is printed as a zero: an interest-free scheme really does
+    /// cost nothing in credit, and "—" would read as "not worked out" instead of "none".
+    /// </summary>
+    private string Figure(decimal value)
+        => value != 0 || _figures.IsCoherent ? Peso.Exact(value) : "—";
+
+    private string Rate(decimal fraction) => _figures.IsCoherent ? Peso.Rate(fraction) : "—";
+
+    /// <summary>
+    /// An advisory proportion, to the whole percent. Never <see cref="Rate"/>: that is for
+    /// a rate the household is charged, and this is a guideline the fund reads.
+    /// </summary>
+    private string Share(decimal fraction) => _figures.IsCoherent ? Peso.Share(fraction) : "—";
+
+    /// <summary>
+    /// The finding under the chart, in one line. Written as what the reader should take
+    /// away rather than as a description of the picture, which is why it names the month
+    /// and the money instead of the lines.
+    /// </summary>
+    private string PaymentsCaption
+    {
+        get
+        {
+            if (!_figures.IsCoherent)
+            {
+                return "The running total appears once there is a principal, a term and a monthly payment.";
+            }
+
+            var cashPrice = Peso.Whole(_terms.PrincipalAmount);
+
+            // Terms the server would refuse, caught here only because the chart draws
+            // before the form is submitted. Said plainly rather than left to the reader
+            // to notice that the two lines never meet.
+            if (_figures.CashPriceMonth is not { } month)
+            {
+                return $"Over the whole term the household hands over {Peso.Whole(_figures.TotalContractPrice)}, "
+                    + $"which never reaches the {cashPrice} the installation costs in cash.";
+            }
+
+            if (month == 0)
+            {
+                return $"The down payment alone covers the {cashPrice} cash price of the installation. "
+                    + "Everything paid over the term after it is the cost of the credit.";
+            }
+
+            return _figures.FinanceCharge <= 0
+                ? $"The household hands over {Peso.Whole(_figures.TotalContractPrice)} in all — the {cashPrice} cash price of the installation, and nothing on top."
+                : $"By month {month} the household has handed over the {cashPrice} the installation costs in cash. "
+                  + $"The {Peso.Whole(_figures.FinanceCharge)} paid over the rest of the term is what the credit costs.";
+        }
+    }
+
+    /// <summary>
+    /// The chart's readable half. One sentence with the figures in it, so a screen reader
+    /// gets the shape of the thing rather than a description of a picture. It does not
+    /// repeat the caption below it — that is a paragraph, and gets read anyway.
+    /// </summary>
+    private string PaymentsSummary => !_figures.IsCoherent
+        ? "No running total yet."
+        : $"What the household has handed over: {Peso.Exact(_terms.DownPayment)} up front, then "
+          + $"{Peso.Exact(_terms.PeriodicPayment)} a month for {Peso.Months(_terms.MonthPeriods)}, reaching "
+          + $"{Peso.Exact(_figures.TotalContractPrice)} by the end of the term. The cash price of the "
+          + $"installation, {Peso.Exact(_terms.PrincipalAmount)}, is drawn flat across it"
+          + (_figures.CashPriceMonth is { } m
+              ? $", and the running total passes it at month {m}."
+              : ", and the running total never reaches it.");
+
+    /// <summary>
+    /// What the guideline bill means, said in the one way it may be said: the instalment
+    /// as a share of it, never a difference from it. The two are not settled against each
+    /// other, and a sentence about the household being "better off" by the gap between
+    /// them is what this panel used to say and what it exists to stop saying.
+    /// </summary>
+    private string SuitabilityNote => _figures.InstalmentShareOfBill > 1
+        ? $"The instalment is more than the whole {Peso.Whole(_terms.ReferenceBillAmount)} bill this scheme is recommended up to. "
+          + "Nothing is settled out of that bill, so this is allowed — but a band this far under the instalment is worth a second look."
+        : $"A household billed the full {Peso.Whole(_terms.ReferenceBillAmount)} would be asked for an instalment of "
+          + $"{Peso.Share(_figures.InstalmentShareOfBill)} of that figure. The bill is only how the scheme is matched to a "
+          + "household — no part of the instalment is settled from it.";
+
+    private string Invalid(string field) => _errors.ContainsKey(field) ? "true" : "false";
+
+    private string Describe(string field, string hintId)
+        => _errors.ContainsKey(field) ? $"sc-{field}-error {hintId}" : hintId;
+
+    private string? Error(string field) => _errors.GetValueOrDefault(field);
+
+    // --- Saving ------------------------------------------------------------------
+
+    /// <summary>
+    /// The same rules <c>InstallmentSchemeValidator</c> enforces, checked here so a
+    /// mistake is answered without a round trip. They are restated rather than shared
+    /// because the client does not reference the services project — keep the two in step.
+    /// </summary>
+    private Dictionary<string, string> Validate()
+    {
+        var errors = new Dictionary<string, string>();
+
+        if (string.IsNullOrWhiteSpace(_description))
+        {
+            errors["description"] = "Give the scheme a name.";
+        }
+        else if (_description.Length > 200)
+        {
+            errors["description"] = "Description must be 200 characters or fewer.";
+        }
+
+        if (_terms.PrincipalAmount <= 0)
+        {
+            errors["principal"] = "Enter what the installation costs.";
+        }
+
+        if (_terms.DownPayment < 0)
+        {
+            errors["down"] = "A down payment cannot be negative.";
+        }
+        else if (_terms.PrincipalAmount > 0 && _terms.DownPayment >= _terms.PrincipalAmount)
+        {
+            errors["down"] = "The down payment must be less than the principal, or there is nothing left to pay off.";
+        }
+
+        if (_terms.MonthPeriods < 1)
+        {
+            errors["months"] = "A term is at least one month.";
+        }
+        else if (_terms.MonthPeriods > 600)
+        {
+            errors["months"] = "A term is 600 months or fewer.";
+        }
+
+        if (_terms.PeriodicPayment <= 0)
+        {
+            errors["payment"] = _basis == PricingBasis.Rate
+                ? "Fill in the principal and the term, and the payment works itself out."
+                : "Enter what the household pays each month.";
+        }
+        else if (_figures.AmountFinanced > 0 && _figures.TotalOfPayments < _figures.AmountFinanced)
+        {
+            errors["payment"] =
+                $"{Peso.Months(_terms.MonthPeriods)} of {Peso.Exact(_terms.PeriodicPayment)} come to "
+                + $"{Peso.Exact(_figures.TotalOfPayments)}, less than the {Peso.Exact(_figures.AmountFinanced)} financed.";
+        }
+
+        if (_terms.ReferenceBillAmount < 0)
+        {
+            errors["bill"] = "A bill guideline cannot be negative.";
+        }
+
+        return errors;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_saving) return;
+
+        _saveError = null;
+        _notice = null;
+        _errors = Validate();
+
+        if (_errors.Count > 0)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        var request = new SaveSchemeRequest
+        {
+            Description = _description.Trim(),
+            PrincipalAmount = _terms.PrincipalAmount,
+            DownPayment = _terms.DownPayment,
+            PeriodicPayment = _terms.PeriodicPayment,
+            MonthPeriods = _terms.MonthPeriods,
+            ReferenceBillAmount = _terms.ReferenceBillAmount,
+        };
+
+        var response = SchemeId is { } id
+            ? await Api.UpdateSchemeAsync(id, request)
+            : await Api.CreateSchemeAsync(request);
+
+        _saving = false;
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code != 200)
+        {
+            // The server's own sentence, verbatim — a clash on the name, or terms it
+            // refused. Nothing about the form is thrown away.
+            _saveError = response.Message;
+            return;
+        }
+
+        _notice = response.Message;
+
+        if (SchemeId is null && response.Data is { SchemeId: > 0 } saved)
+        {
+            // Same component, new parameter: the notice above survives the navigation, and
+            // OnParametersSetAsync reloads the scheme from the server so what is on screen
+            // is what was stored rather than what was typed.
+            Nav.NavigateTo($"manage/installment-schemes/{saved.SchemeId}", replace: true);
+            return;
+        }
+
+        if (SchemeId is { } current)
+        {
+            await LoadAsync(current, quiet: true);
+        }
+    }
+}

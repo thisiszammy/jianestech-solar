@@ -1,0 +1,21 @@
+## .NET build output
+[Bb]in/
+[Oo]bj/
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+## Secrets — the connection string, JWT signing key and seed password live here
+.env
+
+## Tooling caches
+.gitnexus/parse-cache/
+.gitnexus/parsedfile-cache/
+
+## Playwright MCP run artifacts
+.playwright-mcp/
+*.png
+!JianeTech.Client/wwwroot/**/*.png

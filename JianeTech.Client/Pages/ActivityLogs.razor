@@ -1,0 +1,275 @@
+@page "/manage/activity-logs"
+@page "/manage/activity"
+@attribute [Authorize(Roles = ConsoleRoles.Administrator)]
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+@inject FundApiClient Api
+@inject NavigationManager Nav
+@implements IDisposable
+
+@*
+    /activity is kept alongside /activity-logs so links made before the console
+    grew its administration section still land somewhere.
+*@
+
+<PageTitle>Activity logs · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Activity logs</h1>
+        <p class="page-head__sub">The fund's complete record of audited actions, newest first.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <div class="filters">
+        <div class="filters__search">
+            <span class="filters__icon"><Icon Name="search" Size="17" /></span>
+            <label class="sr-only" for="activity-search">Search the activity log</label>
+            <input class="field__input"
+                   id="activity-search"
+                   type="search"
+                   placeholder="Search detail, account, or origin"
+                   value="@_search"
+                   @oninput="OnSearchInput" />
+        </div>
+
+        <div class="filters__field">
+            <label class="filters__label" for="activity-event">Event</label>
+            <select class="field__select" id="activity-event" value="@_activity" @onchange="OnActivityChange">
+                <option value="">All events</option>
+                @foreach (var option in _activities)
+                {
+                    <option value="@option.Activity">@option.Label</option>
+                }
+            </select>
+        </div>
+
+        @* A range, so both ends are labelled. "From" alone on a date input reads
+           as a start with no stated end. *@
+        <div class="filters__field">
+            <label class="filters__label" for="activity-from">From</label>
+            <input class="field__input" id="activity-from" type="date"
+                   max="@(_to is { Length: > 0 } ? _to : null)"
+                   value="@_from" @onchange="OnFromChange" />
+        </div>
+
+        <div class="filters__field">
+            <label class="filters__label" for="activity-to">To</label>
+            <input class="field__input" id="activity-to" type="date"
+                   min="@(_from is { Length: > 0 } ? _from : null)"
+                   value="@_to" @onchange="OnToChange" />
+        </div>
+
+        @if (HasFilters)
+        {
+            <button class="btn btn--quiet filters__clear" type="button" @onclick="ClearFiltersAsync">
+                Clear filters
+            </button>
+        }
+
+        @* Operations, not rows: the page is paged by batch, so this has to count
+           what the pager counts or the two disagree on the same screen. *@
+        @if (!_loading)
+        {
+            <span class="filters__count">
+                @_total.ToString("N0") @(_total == 1 ? "operation" : "operations")
+            </span>
+        }
+    </div>
+
+    @if (_error is { Length: > 0 })
+    {
+        <div class="alert alert--error" role="alert" style="margin-bottom: var(--s-5)">
+            <span class="alert__icon"><Icon Name="alert" Size="17" /></span>
+            <span>
+                @_error
+                <button class="btn btn--quiet" type="button" style="margin-left: var(--s-2)"
+                        @onclick="() => LoadAsync(_page)">Try again</button>
+            </span>
+        </div>
+    }
+
+    <section class="panel">
+        <ActivityBatchLedger Batches="_batches"
+                             Loading="_loading"
+                             StartIndex="FirstOnPage"
+                             SkeletonRows="10"
+                             EmptyTitle="@EmptyTitle"
+                             EmptyBody="@EmptyBody" />
+
+        @if (!_loading)
+        {
+            <Pager Page="_page" PageSize="PageSize" Total="_total"
+                   Noun="operation" OnGo="LoadAsync" />
+        }
+    </section>
+</div>
+
+@code {
+    private const int PageSize = 20;
+
+    /// <summary>Wait for a pause in typing before querying, rather than per keystroke.</summary>
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(320);
+
+    private List<ActivityLogBatch> _batches = [];
+    private List<ActivityOption> _activities = [];
+    private int _total;
+    private int _page = 1;
+    private bool _loading = true;
+    private string? _error;
+
+    private string _search = string.Empty;
+    private string _activity = string.Empty;
+    private string _from = string.Empty;
+    private string _to = string.Empty;
+
+    private CancellationTokenSource? _debounce;
+
+    /// <summary>The ordinal of the first operation on this page, not of the first row.</summary>
+    private int FirstOnPage => (_page - 1) * PageSize + 1;
+
+    private bool HasFilters =>
+        !string.IsNullOrWhiteSpace(_search)
+        || !string.IsNullOrEmpty(_activity)
+        || !string.IsNullOrEmpty(_from)
+        || !string.IsNullOrEmpty(_to);
+
+    private string EmptyTitle => HasFilters
+        ? "No operations match those filters"
+        : "Nothing recorded yet";
+
+    private string EmptyBody => HasFilters
+        ? "Nothing in the log matches what is set above. Widen the dates, or clear the filters to see the whole trail."
+        : "Every action taken in the console is written here — who did it, when, and from where.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The event list populates a filter on this page, so it is fetched alongside the
+        // first page rather than after it — one paint, not two.
+        var activities = Api.GetActivityOptionsAsync();
+        var load = LoadAsync(1);
+
+        var response = await activities;
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _activities = response.Data;
+        }
+
+        await load;
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs args)
+    {
+        _search = args.Value?.ToString() ?? string.Empty;
+
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+
+        try
+        {
+            await Task.Delay(SearchDebounce, token);
+            await LoadAsync(1);
+        }
+        catch (TaskCanceledException)
+        {
+            // Superseded by a later keystroke — the newer query owns the result.
+        }
+    }
+
+    private Task OnActivityChange(ChangeEventArgs args)
+    {
+        _activity = args.Value?.ToString() ?? string.Empty;
+        return LoadAsync(1);
+    }
+
+    private Task OnFromChange(ChangeEventArgs args)
+    {
+        _from = args.Value?.ToString() ?? string.Empty;
+
+        // An inverted range returns nothing and looks like a bug rather than a typo, so
+        // the far end follows the near one instead.
+        if (ParseDay(_from) is { } from && ParseDay(_to) is { } to && to < from)
+        {
+            _to = _from;
+        }
+
+        return LoadAsync(1);
+    }
+
+    private Task OnToChange(ChangeEventArgs args)
+    {
+        _to = args.Value?.ToString() ?? string.Empty;
+
+        if (ParseDay(_from) is { } from && ParseDay(_to) is { } to && to < from)
+        {
+            _from = _to;
+        }
+
+        return LoadAsync(1);
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _search = string.Empty;
+        _activity = string.Empty;
+        _from = string.Empty;
+        _to = string.Empty;
+        return LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        if (page < 1) return;
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        var response = await Api.GetActivityLogsAsync(
+            page,
+            PageSize,
+            _search,
+            int.TryParse(_activity, out var activity) ? activity : null,
+            ParseDay(_from),
+            ParseDay(_to));
+
+        if (response.Code == 401)
+        {
+            Nav.NavigateTo("login", replace: true);
+            return;
+        }
+
+        if (response.Code == 200 && response.Data is not null)
+        {
+            _batches = response.Data.Items;
+            _total = response.Data.TotalRows;
+            _page = page;
+        }
+        else
+        {
+            _error = response.Message;
+            _batches = [];
+            _total = 0;
+        }
+
+        _loading = false;
+    }
+
+    /// <summary>
+    /// A date input hands back yyyy-MM-dd or an empty string. Parsed as a plain calendar
+    /// day with no time attached, because that is what the filter means.
+    /// </summary>
+    private static DateTime? ParseDay(string value)
+        => DateTime.TryParse(value, out var day) ? day.Date : null;
+
+    public void Dispose()
+    {
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+    }
+}

@@ -1,0 +1,47 @@
+@*
+    FundMark — the company seal at small sizes.
+
+    This used to be a drawing *of* the seal: a gold ring with a shield inside it,
+    reduced to the two moves that survive at 30px. It was legible, but a gold
+    ring and a shield is not the logo — it is a generic badge, and next to the
+    real seal on the sign-in page it read as a second, unrelated mark.
+
+    So this is the artwork itself, cropped to its disc and served at 128px for
+    display sizes in the 30-48px range. The ring lettering is mud down there and
+    always will be; what survives is the gold ring, the navy shield and the
+    sunburst, which is enough for someone who knows the mark to recognise it.
+
+    There is no vector of this artwork -- it is a rendered illustration, not an
+    icon -- so the density of the raster is what keeps it sharp. If a vector
+    version ever arrives, this is the one place that has to change.
+
+    The seal's outer band is white, so it does not need a ground: it sits on the
+    dark panel and on the paper without a plate behind it. That is why the old
+    Ground and Metal parameters are gone rather than kept as no-ops.
+*@
+
+@* An empty Label means the mark sits beside words that already name the
+   company, so alt="" drops it out of the accessibility tree entirely rather
+   than announcing the company twice. *@
+<img class="@Class"
+     src="img/jte-mark-128.png"
+     width="@Size"
+     height="@Size"
+     alt="@Label"
+     draggable="false"
+     decoding="async" />
+
+@code {
+    [Parameter]
+    public int Size { get; set; } = 34;
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// Decorative beside a wordmark that already names the company; pass an
+    /// empty label there so the name is not announced twice.
+    /// </summary>
+    [Parameter]
+    public string Label { get; set; } = "Jiane's Tech";
+}

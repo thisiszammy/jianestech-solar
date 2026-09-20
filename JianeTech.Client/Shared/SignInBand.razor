@@ -1,0 +1,151 @@
+@using JianeTech.Client.Auth.Models
+
+@*
+    SignInBand — fourteen days of sign-in attempts.
+
+    Accepted attempts rise from a centre rule, refused ones fall below it. Two
+    opposing quantities sharing one baseline compare faster than two stacked
+    charts, and the shape of a bad day is legible at a glance: a column that
+    hangs low.
+*@
+
+<div class="band">
+    @if (Buckets.Count == 0)
+    {
+        <div class="empty">
+            <p class="empty__title">No sign-in history yet</p>
+            <p class="empty__body">
+                Sign-in attempts appear here as they happen, accepted above the rule and refused below it.
+            </p>
+        </div>
+    }
+    else
+    {
+        <svg class="band__chart"
+             viewBox="0 0 @ChartWidth @ChartHeight"
+             preserveAspectRatio="none"
+             role="img"
+             aria-label="@Summary">
+
+            @* Centre rule: the zero line both directions grow from. *@
+            <line x1="0" y1="@Mid" x2="@ChartWidth" y2="@Mid"
+                  stroke="var(--border-strong)" stroke-width="1" />
+
+            @for (var i = 0; i < Buckets.Count; i++)
+            {
+                var bucket = Buckets[i];
+                var x = i * (BarWidth + BarGap);
+
+                var successHeight = Scale(bucket.Success);
+                var failedHeight = Scale(bucket.Failed);
+
+                @if (bucket.Success > 0)
+                {
+                    <rect x="@x" y="@(Mid - successHeight)"
+                          width="@BarWidth" height="@successHeight"
+                          fill="var(--data-accepted)">
+                        <title>@bucket.Day.ToString("ddd d MMM"): @bucket.Success accepted</title>
+                    </rect>
+                }
+
+                @if (bucket.Failed > 0)
+                {
+                    <rect x="@x" y="@Mid"
+                          width="@BarWidth" height="@failedHeight"
+                          fill="var(--data-refused)">
+                        <title>@bucket.Day.ToString("ddd d MMM"): @bucket.Failed refused</title>
+                    </rect>
+                }
+
+                @* A quiet day draws nothing: a tick on the baseline would sit
+                   directly under the centre rule and be invisible anyway. The
+                   rule itself is what says "nothing happened here", and the
+                   sr-only table below still reports the zero explicitly. *@
+            }
+        </svg>
+
+        <div class="band__legend">
+            <span class="band__key">
+                <span class="band__swatch" style="background: var(--data-accepted)"></span>
+                Accepted
+            </span>
+            <span class="band__key">
+                <span class="band__swatch" style="background: var(--data-refused)"></span>
+                Refused
+            </span>
+            <span style="margin-left: auto">@FirstDay – @LastDay</span>
+        </div>
+
+        @* The chart is not the only way to read this: screen readers and
+           keyboard users get the same numbers as a table.
+
+           The .sr-only goes on a wrapper, not on the table. A table sizes to its
+           content whatever width and height you give it, so hiding it directly
+           left a full-size absolutely-positioned table on the page — invisible,
+           but still adding 374px to the document's scroll height and putting a
+           scrollbar on a console that had nothing to scroll. A div honours the
+           1px box, and the table keeps its markup and its semantics. *@
+        <div class="sr-only">
+            <table>
+                <caption>Sign-in attempts by day</caption>
+                <thead>
+                    <tr><th>Day</th><th>Accepted</th><th>Refused</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var bucket in Buckets)
+                    {
+                        <tr>
+                            <td>@bucket.Day.ToString("d MMMM yyyy")</td>
+                            <td>@bucket.Success</td>
+                            <td>@bucket.Failed</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<SignInBucket> Buckets { get; set; } = [];
+
+    private const int BarWidth = 16;
+    private const int BarGap = 8;
+    private const int ChartHeight = 132;
+    private const int Mid = ChartHeight / 2;
+
+    /// <summary>Tallest a column may grow, leaving a little headroom.</summary>
+    private const int MaxBar = Mid - 8;
+
+    private int ChartWidth => Math.Max(1, Buckets.Count * (BarWidth + BarGap) - BarGap);
+
+    /// <summary>
+    /// Scaled against the busiest day in the window, floored at 1 so a single
+    /// event is still visible rather than rounding away to nothing.
+    /// </summary>
+    private int Scale(int value)
+    {
+        if (value <= 0) return 0;
+
+        var peak = Buckets.Max(b => Math.Max(b.Success, b.Failed));
+        if (peak <= 0) return 0;
+
+        return Math.Max(3, (int)Math.Round((double)value / peak * MaxBar));
+    }
+
+    private string FirstDay => Buckets.Count > 0 ? Buckets[0].Day.ToString("d MMM") : string.Empty;
+
+    private string LastDay => Buckets.Count > 0 ? Buckets[^1].Day.ToString("d MMM") : string.Empty;
+
+    private string Summary
+    {
+        get
+        {
+            var accepted = Buckets.Sum(b => b.Success);
+            var refused = Buckets.Sum(b => b.Failed);
+            return $"Sign-in attempts over {Buckets.Count} days: "
+                 + $"{accepted} accepted, {refused} refused.";
+        }
+    }
+}

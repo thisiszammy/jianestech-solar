@@ -1,0 +1,84 @@
+@*
+    AccountShell — the door, for the three screens where nobody is signed in yet.
+
+    Sign-in already solved this layout: a fixed navy panel carrying the seal, and
+    ledger paper carrying the one thing to do. Setting a first password, asking
+    for a recovery link and choosing a new one are the same person at the same
+    door, a step earlier — so they get the same object rather than three pages
+    that merely rhyme with it.
+
+    Login.razor deliberately does not use this. Its panel carries the circuit
+    field and the scheme terms, which are a pitch to someone deciding whether to
+    sign in; nobody arriving here needs to be sold anything, and the one
+    orchestrated moment in this console stays on the page that owns it.
+
+    The statement is the panel's whole job, and each page passes the same
+    sentence its email led with. Somebody who clicked through from an invitation
+    reads the line they just read in their inbox — which is the cheapest proof
+    available that this page belongs to that mail.
+*@
+
+<div class="account">
+    <section class="account__panel">
+        <div class="account__lockup">
+            <img class="account__seal"
+                 src="img/jte-seal.png"
+                 width="313"
+                 height="320"
+                 alt="Jiane's Tech Enterprise, established 2014"
+                 fetchpriority="high" />
+            <p class="account__division">Solar Fund</p>
+        </div>
+
+        @* Statement and note are one block on purpose. The panel is spaced
+           apart, so with the note as a third child the statement would ride up
+           whenever there was one and drop to the floor whenever there was not —
+           and the note comes and goes with the state of the link. Grouped, the
+           statement lands in the same place on every screen. *@
+        <div class="account__say">
+            <h1 class="account__statement">@Statement</h1>
+
+            @if (PanelNote is not null)
+            {
+                <p class="account__panel-note">@PanelNote</p>
+            }
+        </div>
+    </section>
+
+    <section class="account__side">
+        <div class="account__form">
+            @* h2, not h1: the panel's statement is this page's heading, so a
+               second h1 here would leave the document with two. *@
+            <h2 class="account__title">@Title</h2>
+
+            @if (Lede is { Length: > 0 })
+            {
+                <p class="account__lede">@Lede</p>
+            }
+
+            @ChildContent
+        </div>
+    </section>
+</div>
+
+@code {
+    /// <summary>The panel's one large setting. No word in it is accented.</summary>
+    [Parameter, EditorRequired]
+    public string Statement { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The quiet line under the statement — normally the one fact about the link
+    /// that the reader needs before they start typing.
+    /// </summary>
+    [Parameter]
+    public string? PanelNote { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Lede { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+}

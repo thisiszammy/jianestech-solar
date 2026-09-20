@@ -1,0 +1,28 @@
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+
+@*
+    Rendered when an authorized page turns somebody away. Replaces the history
+    entry rather than pushing one, so Back does not bounce them straight into
+    the page that just refused them.
+
+    AuthorizeRouteView renders this for both reasons a page can refuse, and they
+    want opposite answers. No session is the one it was written for: sign in.
+    A session without the role is the other, and it arrived with public
+    registration — a standard user following "Open the console" reaches /manage,
+    which is administrators-only. Sending them to /login would be telling
+    somebody who is already signed in to sign in, and the sign-in page would
+    send them straight back for being authenticated. They go to their own page
+    instead.
+*@
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+
+        Nav.NavigateTo(
+            state.User.Identity?.IsAuthenticated == true ? "manage/account" : "login",
+            replace: true);
+    }
+}

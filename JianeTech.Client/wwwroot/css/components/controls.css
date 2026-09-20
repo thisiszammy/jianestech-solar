@@ -1,0 +1,456 @@
+/* ============================================================================
+   controls.css — buttons, fields, chips, status dots.
+   ========================================================================== */
+
+/* --- Button -------------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    min-height: 44px;              /* touch target floor */
+    padding: 0 var(--s-5);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    font-size: var(--text-base);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    transition:
+        background var(--dur-fast) var(--ease),
+        border-color var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.btn--primary {
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.btn--primary:hover:not(:disabled) {
+    background: var(--ink-2);
+}
+
+/* The public page's call, and the one button that lives on the dark panel —
+   where --primary's ink on navy would simply vanish. Gold is the brand's colour
+   and this is the brand asking for something, which is the only reason a control
+   gets to wear it. tokens.css keeps bright gold to dark grounds, so this variant
+   belongs on .landing__panel and never on paper. Navy on gold is 6.9:1. */
+.btn--brand {
+    background: var(--gold);
+    color: var(--panel-dark);
+}
+
+.btn--brand:hover:not(:disabled) {
+    background: var(--gold-lit);
+}
+
+.btn--ghost {
+    color: var(--ink-3);
+    border-color: var(--border);
+    background: var(--surface);
+}
+
+.btn--ghost:hover:not(:disabled) {
+    color: var(--ink);
+    border-color: var(--border-strong);
+}
+
+/* Sign-out sits apart from navigation and reads as a leaving action. */
+.btn--quiet {
+    min-height: 36px;
+    padding: 0 var(--s-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--ink-4);
+}
+
+.btn--quiet:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--border-soft);
+}
+
+.btn--block {
+    width: 100%;
+}
+
+/* Spinner replaces the label in place, so the button never changes width. */
+.btn__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin 620ms linear infinite;
+}
+
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* --- Field --------------------------------------------------------------- */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.field__label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.field__input {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 var(--s-4);
+    border: 1px solid var(--field-border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    font-size: var(--text-base);
+    transition:
+        border-color var(--dur-fast) var(--ease),
+        box-shadow var(--dur-fast) var(--ease);
+}
+
+.field__input::placeholder {
+    color: var(--ink-4);
+}
+
+.field__input:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+.field__input[aria-invalid='true'] {
+    border-color: var(--danger);
+}
+
+/* Password field carries a reveal toggle inside its own bounds. */
+.field__wrap {
+    position: relative;
+}
+
+.field__wrap .field__input {
+    padding-right: 52px;
+}
+
+.field__toggle {
+    position: absolute;
+    top: 50%;
+    right: var(--s-1);
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--ink-4);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease);
+}
+
+.field__toggle:hover {
+    color: var(--ink-2);
+}
+
+.field__hint {
+    font-size: var(--text-xs);
+    color: var(--ink-4);
+}
+
+/* --- Checkbox ------------------------------------------------------------ */
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 44px;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.check input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--ink-2);
+    cursor: pointer;
+}
+
+/* --- Inline alert -------------------------------------------------------- */
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-md);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+}
+
+.alert--error {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.alert__icon {
+    flex: none;
+    margin-top: 1px;
+}
+
+/* --- Status dot ---------------------------------------------------------- */
+/* Colour alone never carries the meaning — every dot sits beside its label. */
+.dot {
+    display: inline-block;
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--neutral);
+}
+
+.dot--success { background: var(--success); }
+.dot--failed  { background: var(--danger); }
+.dot--blocked { background: var(--warn); }
+
+/* --- Chip ---------------------------------------------------------------- */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 3px var(--s-2);
+    border-radius: var(--r-sm);
+    background: var(--neutral-bg);
+    color: var(--neutral);
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+
+.chip--success { background: var(--success-bg); color: var(--success); }
+.chip--failed  { background: var(--danger-bg);  color: var(--danger); }
+.chip--blocked { background: var(--warn-bg);    color: var(--warn); }
+.chip--pending { background: var(--pending-bg); color: var(--pending); }
+
+/* --- Status dot, continued ---------------------------------------------- */
+/* The ledger names its tones after what happened (success / failed / blocked);
+   the dashboard's account breakdown names them after severity (warn / danger /
+   neutral). Both vocabularies are already in the data, so both are given dots
+   here rather than made to agree — an account's status and an audit row's
+   outcome are genuinely different things to say. */
+.dot--warn    { background: var(--warn); }
+.dot--danger  { background: var(--danger); }
+.dot--neutral { background: var(--neutral); }
+.dot--pending { background: var(--pending); }
+
+/* --- Select -------------------------------------------------------------- */
+/* Same box as .field__input, plus a chevron drawn in the background so the
+   control reads as a choice at a glance. The arrow is inlined as a data URI
+   rather than an <Icon> because a native <select> cannot hold child markup,
+   and it is stroked in --ink-4 so it sits at the same weight as placeholder
+   text. Dark mode redraws it, since a navy chevron vanishes on a navy field. */
+.field__select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 var(--s-8) 0 var(--s-4);
+    border: 1px solid var(--field-border);
+    border-radius: var(--r-md);
+    background-color: var(--surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c7190' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--s-3) center;
+    background-size: 18px 18px;
+    font-size: var(--text-base);
+    cursor: pointer;
+    appearance: none;
+    transition:
+        border-color var(--dur-fast) var(--ease),
+        box-shadow var(--dur-fast) var(--ease);
+}
+
+.field__select:focus {
+    outline: none;
+    border-color: var(--brass);
+    box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .field__select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238394ae' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+    }
+}
+
+:root[data-theme='dark'] .field__select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238394ae' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* --- Date field ---------------------------------------------------------- */
+/* Safari and Chrome size a date input to its own idea of the text, so it has
+   to be told to fill its column or the two ends of a range come out different
+   widths. */
+.field__input[type='date'] {
+    min-width: 0;
+    font-variant-numeric: var(--numeric);
+}
+
+/* --- Validation message -------------------------------------------------- */
+/* Sits directly under the field it belongs to, never collected at the top of
+   the form: by the time a summary is read the field is out of sight. */
+.field__error {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--danger);
+}
+
+/* Blazor stamps these on any input inside an EditForm. Only the invalid state
+   is drawn — a green ring on every field someone merely typed in is noise. */
+.field__input.invalid,
+.field__select.invalid {
+    border-color: var(--danger);
+}
+
+.field__input.invalid:focus,
+.field__select.invalid:focus {
+    box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
+/* --- Required marker ----------------------------------------------------- */
+.field__req {
+    margin-left: 2px;
+    color: var(--danger);
+}
+
+/* A confirmation, worded by the server and carrying the same shape as the
+   error it replaces. Not a toast: in a back office the person has no reason to
+   be hurried, and a message that removes itself after four seconds is one the
+   reader can miss. It clears on the next thing they do instead. */
+.alert--success {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+/* The same shape again for an outcome that worked in part. It earns its own
+   tone rather than borrowing the confirmation's: an invitation whose account
+   was created but whose email never left is not a failure — nothing needs
+   redoing, and the row is there — but painting it green would have the console
+   say "done" about something the reader still has to finish. */
+.alert--warn {
+    background: var(--warn-bg);
+    color: var(--warn);
+}
+
+.alert__dismiss {
+    margin-left: auto;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    margin-top: -2px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity var(--dur-fast) var(--ease);
+}
+
+.alert__dismiss:hover {
+    opacity: 1;
+}
+
+/* Blazor's own ValidationMessage element, dressed as .field__error so a message
+   looks the same whether it came from a data annotation or from the server. */
+.validation-message {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--danger);
+}
+
+/* --- Icon button --------------------------------------------------------- */
+/* Row actions. Icon-only by necessity — a table row cannot carry two worded
+   buttons per line without the record itself losing the space — so every one of
+   them carries an aria-label naming both the action and the person it acts on,
+   and a title so a sighted pointer user gets the same sentence.
+
+   Quiet until approached: at rest they are --ink-4 on nothing, which keeps a
+   page of twenty rows from reading as a wall of buttons. */
+.icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--ink-4);
+    cursor: pointer;
+    transition:
+        background var(--dur-fast) var(--ease),
+        border-color var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--ink);
+}
+
+/* Destructive actions take the danger colour on approach, not at rest: a row of
+   permanently red buttons reads as a page of errors. */
+.icon-btn--danger:hover:not(:disabled) {
+    background: var(--danger-bg);
+    border-color: transparent;
+    color: var(--danger);
+}
+
+.icon-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+
+/* The row is tall enough for a 34px control on a pointer device. A finger is
+   not a pointer, so on touch the buttons take the full target.
+
+   Two queries for one rule, because neither covers the case alone: the pointer
+   query is the honest test and catches a touch laptop at any width, while the
+   width query catches a phone whose browser still reports a fine pointer. The
+   overlap costs nothing — where the register has stacked into a log there is
+   room for a 44px button either way. */
+@media (pointer: coarse), (max-width: 639px) {
+    .icon-btn {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+.row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-1);
+}
+
+/* Destructive confirmation. Only ever the confirming button inside a dialog
+   that already said what is about to happen — never a button sitting loose on
+   a page, where red is a warning with no sentence attached to it. */
+.btn--danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn--danger:hover:not(:disabled) {
+    filter: brightness(1.08);
+}

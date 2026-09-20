@@ -1,0 +1,166 @@
+/* ============================================================================
+   base.css — reset, document defaults, and the primitives every page shares.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+}
+
+p {
+    margin: 0;
+}
+
+/* Every figure in this console is money or a count, so tabular figures are the
+   default rather than an opt-in — columns of numbers must not shuffle width. */
+table,
+.numeric,
+input[type='number'] {
+    font-variant-numeric: var(--numeric);
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+input,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+/* One focus treatment across the app. Never removed — only restyled. The colour
+   comes from --focus, which resolves to the deep brass on paper and to the lit
+   gold inside the dark panel, so the ring is legible on either ground. */
+:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+}
+
+/* FocusOnNavigate moves focus to the page heading on every route change so a
+   screen reader announces where it landed. Nobody reached that heading by
+   pressing Tab, so it does not get the ring: the announcement is the feedback,
+   and a box drawn around the page title after every navigation reads as an
+   error to everyone who can see it. Focus itself is untouched — only the
+   ring is suppressed, and only on the element the router moved it to. */
+h1[tabindex]:focus-visible {
+    outline: none;
+}
+
+::selection {
+    background: var(--gold-lit);
+    color: var(--panel-dark);
+}
+
+/* --- Scrollbars: present but quiet ------------------------------------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: var(--r-pill);
+}
+
+/* --- Screen-reader-only ------------------------------------------------- */
+/* Put this on a plain block element. A <table> sizes to its content whatever
+   width and height it is given, so applying it to one directly leaves a
+   full-size absolutely-positioned table stretching the page's scroll area —
+   wrap the table in a div carrying this class instead. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* --- Skip link ---------------------------------------------------------- */
+.skip-link {
+    position: absolute;
+    left: var(--s-4);
+    top: -100px;
+    z-index: 200;
+    padding: var(--s-2) var(--s-4);
+    background: var(--ink);
+    color: var(--surface);
+    border-radius: var(--r-md);
+    transition: top var(--dur-fast) var(--ease);
+}
+
+.skip-link:focus {
+    top: var(--s-4);
+}
+
+/* --- Blazor's own error strip, restyled to match ------------------------ */
+#blazor-error-ui {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: none;
+    padding: var(--s-3) var(--s-6);
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-top: 1px solid var(--danger);
+    font-size: var(--text-sm);
+}
+
+#blazor-error-ui .dismiss {
+    float: right;
+    cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion is opt-out at the document level. Anything that moves in this console
+   answers a person's action; nothing loops or drifts on its own.
+   ------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

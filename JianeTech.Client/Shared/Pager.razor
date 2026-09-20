@@ -1,0 +1,65 @@
+@*
+    Pager — the foot rule under a paged table.
+
+    Says where you are in words before it offers the controls, because "21–40
+    of 312" is the answer to the question people actually have. Rendered only
+    when there is more than one page: a Previous/Next pair that can never do
+    anything is furniture, not navigation.
+*@
+
+@if (Total > PageSize)
+{
+    <div class="pager">
+        <span class="pager__where">
+            @First&ndash;@Last of @Total.ToString("N0") @(Total == 1 ? Noun : Plural)
+        </span>
+        <div class="pager__controls">
+            <button class="btn btn--ghost"
+                    type="button"
+                    disabled="@(Page <= 1)"
+                    @onclick="() => GoAsync(Page - 1)">
+                <Icon Name="prev" Size="15" />
+                Previous
+            </button>
+            <button class="btn btn--ghost"
+                    type="button"
+                    disabled="@(Page >= LastPage)"
+                    @onclick="() => GoAsync(Page + 1)">
+                Next
+                <Icon Name="next" Size="15" />
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public int Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public int PageSize { get; set; }
+
+    [Parameter, EditorRequired]
+    public int Total { get; set; }
+
+    /// <summary>What a row is called here — "event", "account".</summary>
+    [Parameter]
+    public string Noun { get; set; } = "row";
+
+    [Parameter]
+    public string? NounPlural { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<int> OnGo { get; set; }
+
+    private string Plural => NounPlural ?? $"{Noun}s";
+
+    private int LastPage => Math.Max(1, (int)Math.Ceiling((double)Total / PageSize));
+
+    private int First => Total == 0 ? 0 : (Page - 1) * PageSize + 1;
+
+    private int Last => Math.Min(Page * PageSize, Total);
+
+    private Task GoAsync(int page)
+        => page < 1 || page > LastPage ? Task.CompletedTask : OnGo.InvokeAsync(page);
+}

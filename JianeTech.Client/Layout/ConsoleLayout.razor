@@ -1,0 +1,187 @@
+@inherits LayoutComponentBase
+@using JianeTech.Client.Auth
+@using JianeTech.Client.Auth.Models
+@using JianeTech.Client.Shared
+@inject FundApiClient Api
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<div class="shell">
+    <a class="skip-link" href="#console-main">Skip to main content</a>
+
+    <nav class="side" aria-label="Console">
+        @* The mark is the only gold object in this lockup — the wordmark beside
+           it stays white, or the two compete. Label is empty because the words
+           are right there; announcing the company twice helps nobody. *@
+        <div class="side__mark">
+            <FundMark Size="34" Label="" Class="side__glyph" />
+            <span class="side__wordmark">
+                <b>Jiane&rsquo;s Tech</b>
+                <span>Solar Fund</span>
+            </span>
+        </div>
+
+        @* Two groups, because the console now does two different jobs: running
+           the fund, and running the console. Each group's label names the list
+           it heads (aria-labelledby on the <ul>), so a screen reader announces
+           "Operation, list, 5 items" instead of reading seven sibling links
+           with no sense of where one section ends. No nested <nav>: the panel
+           is already one landmark, and three would be two too many. *@
+        <div class="side__nav">
+            @* Every page these lead to is administrators-only, so a standard
+               user is shown none of them: a sidebar of links that all refuse
+               you is worse than a short one. The gate here is a courtesy —
+               the API is what actually decides — but it is the difference
+               between a console and a wall of closed doors. *@
+            @if (_isAdministrator)
+            {
+                <div class="side__group">
+                    <p class="side__group-label" id="nav-operation">OPERATION</p>
+                    <ul class="side__list" aria-labelledby="nav-operation">
+                        <li>
+                            <NavLink class="side__link" href="manage" Match="NavLinkMatch.All">
+                                <Icon Name="overview" />
+                                Dashboard
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/installments">
+                                <Icon Name="installments" />
+                                Installments
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/investments">
+                                <Icon Name="investments" />
+                                Investments
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/customers">
+                                <Icon Name="customers" />
+                                Customers
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/investors">
+                                <Icon Name="investors" />
+                                Investors
+                            </NavLink>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="side__group">
+                    <p class="side__group-label" id="nav-administration">ADMINISTRATION</p>
+                    <ul class="side__list" aria-labelledby="nav-administration">
+                        <li>
+                            <NavLink class="side__link" href="manage/installment-schemes">
+                                <Icon Name="schemes" />
+                                Installment Schemes
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/investment-schemes">
+                                <Icon Name="schemes" />
+                                Investment Schemes
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/users">
+                                <Icon Name="users" />
+                                Users
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="side__link" href="manage/activity-logs">
+                                <Icon Name="activity" />
+                                Activity Logs
+                            </NavLink>
+                        </li>
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div class="side__group">
+                    <p class="side__group-label" id="nav-account">YOUR ACCOUNT</p>
+                    <ul class="side__list" aria-labelledby="nav-account">
+                        <li>
+                            <NavLink class="side__link" href="manage/account">
+                                <Icon Name="overview" />
+                                Your account
+                            </NavLink>
+                        </li>
+                    </ul>
+                </div>
+            }
+        </div>
+
+        <div class="side__foot">
+            @if (_user is not null)
+            {
+                <div class="side__who">
+                    <span class="side__avatar" aria-hidden="true">@_user.Initials</span>
+                    <span class="side__who-text">
+                        <b>@_user.FullName</b>
+                        <span>@_user.UserTypeLabel</span>
+                    </span>
+                </div>
+            }
+
+            @* Sign-out is kept apart from navigation: it leaves the console
+               rather than moving within it. *@
+            <button class="btn btn--quiet side__signout"
+                    type="button"
+                    disabled="@_signingOut"
+                    @onclick="SignOutAsync">
+                <Icon Name="signout" Size="16" />
+                <span>@(_signingOut ? "Signing out" : "Sign out")</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="main" id="console-main">
+        @Body
+    </main>
+</div>
+
+@code {
+    private AuthenticatedUser? _user;
+    private bool _isAdministrator;
+    private bool _signingOut;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Read the identity the state provider already resolved rather than
+        // asking the API again on every navigation.
+        var state = await AuthState.GetAuthenticationStateAsync();
+        _user = (AuthState as CookieAuthenticationStateProvider)?.CurrentUser;
+
+        // Which sidebar to draw. Read off the principal rather than off
+        // _user.UserType so this and the [Authorize(Roles = ...)] attributes on
+        // the pages are asking the same question of the same claim.
+        _isAdministrator = state.User.IsInRole(ConsoleRoles.Administrator);
+    }
+
+    private async Task SignOutAsync()
+    {
+        if (_signingOut) return;
+
+        _signingOut = true;
+
+        // The server clears the cookies; this only drops the cached identity.
+        // Run it even if the call fails, so a network problem cannot strand
+        // someone in a console they meant to leave.
+        try
+        {
+            await Api.LogoutAsync();
+        }
+        finally
+        {
+            (AuthState as CookieAuthenticationStateProvider)?.SignOut();
+            _signingOut = false;
+            Nav.NavigateTo("login", replace: true);
+        }
+    }
+}

@@ -1,0 +1,117 @@
+@*
+    ImageSlot — where a picture will go, and a note of what it should be.
+
+    The landing page ships before its photography does, so every picture on it
+    starts as one of these. It is drawn as an unpopulated array: the panel grid
+    the Dashboard's nav icon draws, with its cells left as dashed outlines. That
+    is the same thing UnderConstruction says about a page with no behaviour yet,
+    said here about a frame with no photograph yet. On the landing page a dashed
+    line always means "not filled in", and this is the largest instance of it.
+
+    The nameplate is the useful part. A solar panel carries a rating plate on
+    its back saying what it is; this one says what the picture should be and the
+    size to supply it at, so the brief travels with the hole it has to fill
+    rather than living in a document nobody opens.
+
+    Filling a slot is one attribute: pass Src (and Alt) and the placeholder is
+    replaced by the image — same box, same cut corner. Width and Height are
+    required either way. They reserve the space, so neither state shifts the
+    layout when the other arrives.
+*@
+
+@if (Src is { Length: > 0 })
+{
+    @* The ratio is stated here as well as in width/height. Those two attributes
+       only reserve space until the file arrives; after that height:auto follows
+       the file's own shape, and a photograph supplied at any other ratio would
+       resize the slot and shove the page about. With the ratio pinned, a
+       mismatched file is cropped to the slot (object-fit) instead. *@
+    <img class="slot slot--filled @(Compact ? "slot--compact" : null) @Class"
+         style="aspect-ratio: @Width / @Height"
+         src="@Src"
+         alt="@(Decorative ? string.Empty : Alt)"
+         width="@Width"
+         height="@Height"
+         loading="lazy"
+         decoding="async" />
+}
+else
+{
+    @* role=img makes the whole slot one object with one name, so a screen
+       reader hears "placeholder" once instead of walking the plate's lines. *@
+    <div class="slot @(Compact ? "slot--compact" : null) @Class"
+         style="aspect-ratio: @Width / @Height"
+         role="@(Decorative ? null : "img")"
+         aria-hidden="@(Decorative ? "true" : null)"
+         aria-label="@(Decorative ? null : $"Placeholder for a {Kind.ToLowerInvariant()}: {Brief}")">
+
+        <span class="slot__array"></span>
+
+        @if (Compact)
+        {
+            @if (Caption is { Length: > 0 })
+            {
+                <span class="slot__caption">@Caption</span>
+            }
+        }
+        else
+        {
+            <span class="slot__plate">
+                <b>@Kind</b>
+                <span>@Brief</span>
+                <span class="numeric">@Width &times; @Height</span>
+            </span>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The real image. Leave unset and the slot draws its placeholder.</summary>
+    [Parameter]
+    public string? Src { get; set; }
+
+    /// <summary>Alt text for the real image. Unused while the slot is empty.</summary>
+    [Parameter]
+    public string Alt { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the picture should show, written for whoever has to go and take it.
+    /// Printed on the nameplate, and read out as the placeholder's name.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Brief { get; set; } = string.Empty;
+
+    /// <summary>Photograph, Portrait, Logo, Screenshot — the plate's first line.</summary>
+    [Parameter]
+    public string Kind { get; set; } = "Photograph";
+
+    /// <summary>Intrinsic size to supply the asset at. Also fixes the slot's aspect ratio.</summary>
+    [Parameter, EditorRequired]
+    public int Width { get; set; }
+
+    [Parameter, EditorRequired]
+    public int Height { get; set; }
+
+    /// <summary>
+    /// For slots too small to carry a nameplate — a portrait, a partner's logo.
+    /// The brief is still announced; only the printed plate is dropped.
+    /// </summary>
+    [Parameter]
+    public bool Compact { get; set; }
+
+    /// <summary>
+    /// For a picture that sits beside words already saying what it shows — a
+    /// portrait next to the person's name. It leaves the accessibility tree in
+    /// both states, the same way FundMark does with an empty Label, so the name
+    /// is not preceded by a description of a face.
+    /// </summary>
+    [Parameter]
+    public bool Decorative { get; set; }
+
+    /// <summary>One or two words centred in a compact slot. Optional.</summary>
+    [Parameter]
+    public string? Caption { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+}

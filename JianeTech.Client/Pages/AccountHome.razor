@@ -1,0 +1,105 @@
+@page "/manage/account"
+@attribute [Authorize]
+@using JianeTech.Client.Auth.Models
+@using Microsoft.AspNetCore.Authorization
+@inject AuthenticationStateProvider AuthState
+
+@*
+    AccountHome — where somebody who is not an administrator lands.
+
+    Public registration is what made this page necessary. Before it, every
+    account in the database had been created by an administrator and the console
+    was the only thing behind the door; now anyone can hold an account, and
+    /manage is administrators-only, so a standard user needs an address of their
+    own rather than a redirect that bounces them somewhere they will be refused.
+
+    It asks the API for nothing. Everything on it is already in the identity the
+    state provider resolved on load, which matters more than the saved request:
+    every read endpoint in this console is now administrators-only, so a page
+    for a standard user that called one would paint an error where its answer is
+    simply "not your view". When the investor and household views are built,
+    this is the page they grow out of.
+*@
+
+<PageTitle>Your account · Jiane's Tech Solar Fund</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Your account</h1>
+        <p class="page-head__sub">What the fund has on file for you.</p>
+    </div>
+</header>
+
+<div class="page-body">
+    <section class="panel">
+        <div class="panel__head">
+            <h2>Your details</h2>
+        </div>
+
+        <div class="rail">
+            <div class="rail__row">
+                <span class="rail__label">Name</span>
+                <span class="rail__value">@(_user?.FullName ?? "—")</span>
+            </div>
+            <div class="rail__row">
+                <span class="rail__label">Username</span>
+                <span class="rail__value">@(_user?.Username ?? "—")</span>
+            </div>
+            <div class="rail__row">
+                <span class="rail__label">Email</span>
+                <span class="rail__value">@(_user?.Email ?? "—")</span>
+            </div>
+            <div class="rail__row">
+                <span class="rail__label">Mobile</span>
+                <span class="rail__value rail__value--muted">
+                    @(_user?.PhoneNumber is { Length: > 0 } phone ? phone : "Not given")
+                </span>
+            </div>
+            <div class="rail__row">
+                <span class="rail__label">Role</span>
+                <span class="rail__value rail__value--muted">@(_user?.UserTypeLabel ?? "—")</span>
+            </div>
+
+            @* The one row that is not a fact about them but about the fund's
+               memory of them, which is the thing this console is for. *@
+            <div class="rail__row">
+                <span class="rail__label">Last signed in</span>
+                <span class="rail__value rail__value--muted">
+                    @(_user?.LastSignInOn is { } seen
+                        ? seen.ToString("d MMM yyyy, HH:mm")
+                        : "This is your first visit")
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="empty">
+            @* Written as a status, not an apology — the same reading
+               UnderConstruction takes of the operational pages. That component
+               is not reused here because both of its links go to pages this
+               reader is refused at, and two dead buttons is worse than none. *@
+            <p class="empty__title">Your placement and your instalments are not here yet</p>
+            <p class="empty__body">
+                The fund's investment and instalment records exist, and nothing reads or
+                writes them from this console yet. When they do, they appear on this page.
+                In the meantime, somebody from the fund will be in touch about what you
+                came for — and everything done to your account is written to the fund's
+                activity log either way.
+            </p>
+        </div>
+    </section>
+</div>
+
+@code {
+    private AuthenticatedUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The identity the state provider already resolved, not a second round
+        // trip. /api/auth/me is the one read endpoint a standard user may call,
+        // but it has already been called by the time this page renders.
+        await AuthState.GetAuthenticationStateAsync();
+        _user = (AuthState as CookieAuthenticationStateProvider)?.CurrentUser;
+    }
+}

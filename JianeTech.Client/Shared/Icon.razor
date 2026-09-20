@@ -1,0 +1,162 @@
+@*
+    Icon — one inline SVG set, one visual language.
+
+    All glyphs share a 24px box, 1.75 stroke, round caps and joins, so nothing
+    in the console looks borrowed from a different family. Inline rather than a
+    font so they inherit currentColor and stay crisp at any size.
+*@
+
+<svg width="@Size" height="@Size" viewBox="0 0 24 24"
+     fill="none" stroke="currentColor" stroke-width="1.75"
+     stroke-linecap="round" stroke-linejoin="round"
+     aria-hidden="true" focusable="false" class="@Class">
+    @((MarkupString)Path)
+</svg>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    [Parameter]
+    public int Size { get; set; } = 18;
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string Path => Name switch
+    {
+        // Overview: a panel array, tying the nav back to the subject.
+        "overview" => """
+            <rect x="3" y="4" width="18" height="13" rx="1.5"/>
+            <path d="M9 4v13M15 4v13M3 8.3h18M3 12.7h18M12 17v3M8 20h8"/>
+            """,
+
+        // Activity: a ruled record.
+        "activity" => """
+            <path d="M5 3h11l3 3v15H5z"/>
+            <path d="M8.5 9.5h7M8.5 13h7M8.5 16.5h4"/>
+            """,
+
+        // The family is objects, not abstractions: every glyph below is a thing
+        // that exists in this business — a bill, a certificate, a roof with a
+        // panel on it — so the nav reads as the fund's own furniture rather than
+        // as a generic admin kit.
+
+        // Installments: a bill, torn off at the foot the way a statement is.
+        "installments" => """
+            <path d="M5.5 3h13v16.5l-2.2-1.4-2.1 1.4-2.2-1.4-2.1 1.4-2.2-1.4-2.2 1.4z"/>
+            <path d="M9 8h6M9 11.5h6"/>
+            """,
+
+        // Investments: a certificate with its seal — the fund's placement, in
+        // the form the company's own mark takes.
+        "investments" => """
+            <path d="M4.5 3.5h15v13h-15z"/>
+            <path d="M7.5 7h9M7.5 10h5"/>
+            <circle cx="16.5" cy="17.5" r="3"/>
+            <path d="M15 20v3l1.5-1 1.5 1v-3"/>
+            """,
+
+        // Customers: a house wearing the thing they bought.
+        "customers" => """
+            <path d="M3.5 10.8 12 4l8.5 6.8V20a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/>
+            <path d="M8 13h8v4H8z"/>
+            <path d="M12 13v4M8 15h8"/>
+            """,
+
+        // Investors: the person, and the capital they placed.
+        "investors" => """
+            <path d="M9 11.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z"/>
+            <path d="M3 20.5a6 6 0 0 1 9.4-4.9"/>
+            <circle cx="17.5" cy="17.5" r="3.5"/>
+            <path d="M16 17.5h3M17.5 16v3"/>
+            """,
+
+        // Installment schemes: the terms sheet the bills are cut from. A ruled card
+        // with three columns of the same height under it — equal payments being
+        // the one property that makes an instalment an instalment, and what tells
+        // this apart from Investments, whose columns would be climbing.
+        "schemes" => """
+            <rect x="3" y="4.25" width="18" height="15.5" rx="1.75"/>
+            <path d="M3 8.75h18"/>
+            <path d="M7.25 16.5v-4.25M12 16.5v-4.25M16.75 16.5v-4.25"/>
+            """,
+
+        // Users: an account record — the card, not the person.
+        "users" => """
+            <rect x="2.75" y="5" width="18.5" height="14" rx="2"/>
+            <circle cx="8.75" cy="11" r="2.1"/>
+            <path d="M5.4 16.1a3.7 3.7 0 0 1 6.7 0"/>
+            <path d="M14.75 10h4M14.75 13.5h4"/>
+            """,
+
+        // Edit: a pencil amending a ruled entry — what you do to a line in a book
+        // of record, rather than a free-floating pencil.
+        "edit" => """
+            <path d="M14.4 4.9 17 2.3a1.2 1.2 0 0 1 1.7 0l2 2a1.2 1.2 0 0 1 0 1.7l-2.6 2.6"/>
+            <path d="m14.4 4.9 4.3 4.3-8 8-5 .7.7-5z"/>
+            <path d="M4 21.2h16"/>
+            """,
+
+        // Deactivate / reactivate: one power switch for a state that is one switch.
+        // The same glyph both ways, because it is the same control — which way it
+        // will throw is carried by the button's tone and its label, never by the
+        // icon alone.
+        "power" => """
+            <path d="M12 3.2v8.4"/>
+            <path d="M17.3 6.4a7.25 7.25 0 1 1-10.6 0"/>
+            """,
+
+        "plus" => """<path d="M12 5.5v13M5.5 12h13"/>""",
+
+        "close" => """<path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>""",
+
+        // The landing page's bar at phone width: the links it has folded away.
+        // It trades places with "close", so the two share a box and a weight.
+        "menu" => """<path d="M4.5 7h15M4.5 12h15M4.5 17h15"/>""",
+
+        "signout" => """
+            <path d="M9.5 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3.5"/>
+            <path d="M15 16l4-4-4-4M19 12H9.5"/>
+            """,
+
+        "search" => """
+            <circle cx="10.5" cy="10.5" r="6.5"/>
+            <path d="M15.4 15.4 20 20"/>
+            """,
+
+        "eye" => """
+            <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>
+            <circle cx="12" cy="12" r="2.75"/>
+            """,
+
+        "eye-off" => """
+            <path d="M10 5.7A8.9 8.9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.4 6.6A16.6 16.6 0 0 0 2.5 12S6 18.5 12 18.5a8.8 8.8 0 0 0 3.7-.8"/>
+            <path d="M9.9 9.9a2.75 2.75 0 0 0 3.9 3.9M3 3l18 18"/>
+            """,
+
+        "alert" => """
+            <circle cx="12" cy="12" r="8.75"/>
+            <path d="M12 7.75v4.75M12 16.1h.01"/>
+            """,
+
+        // Both of these are things, like the nav glyphs above: the envelope an
+        // invitation arrives in, and the key it hands over.
+        "mail" => """
+            <rect x="3" y="5.5" width="18" height="13" rx="1.5"/>
+            <path d="m3.7 6.7 8.3 5.9 8.3-5.9"/>
+            """,
+
+        "key" => """
+            <circle cx="8.5" cy="15.5" r="4.25"/>
+            <path d="M11.5 12.5 20 4"/>
+            <path d="m16.5 7.5 2.4 2.4M14.4 9.6l2.4 2.4"/>
+            """,
+
+        "prev" => """<path d="M14.5 5.5 8 12l6.5 6.5"/>""",
+
+        "next" => """<path d="M9.5 5.5 16 12l-6.5 6.5"/>""",
+
+        _ => string.Empty,
+    };
+}
