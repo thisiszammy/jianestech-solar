@@ -23,9 +23,11 @@ using Serilog;
 // cmendoza
 // 2rnc2U3Wec4C7EHs
 
-DotNetEnv.Env.Load();
+DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+var seqUrl = builder.Configuration["Seq:Url"];
 
 builder.Host.UseSerilog((ctx, lc) =>
 {
@@ -34,24 +36,14 @@ builder.Host.UseSerilog((ctx, lc) =>
       .Enrich.WithProperty("Application", "[JIANESTECH-SOLAR]");
 
 #if !DEBUG
-    var logDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "My Websites", "JianeTech", "logs");
-    Directory.CreateDirectory(logDir);
-
-    lc.WriteTo.File(
-        Path.Combine(logDir, "log-.txt"),
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
-#else
-    lc.WriteTo.Console();
-#endif
-    var seqUrl = ctx.Configuration["Seq:Url"];
-    if (!string.IsNullOrEmpty(seqUrl))
+if (!string.IsNullOrEmpty(seqUrl))
     {
         lc.WriteTo.Seq(seqUrl);
     }
+#else
+    lc.WriteTo.Console();
+#endif
+    
 });
 
 // ---------------------------------------------------------------------------
@@ -307,6 +299,20 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+// Said out loud because neither outcome announces itself otherwise — see the note on
+// seqUrl above. It is the first thing written, so "is it even trying?" is answered before
+// anything else in the log is read. Disabled is a warning rather than information: a
+// configured capability that is not running is worth one line on every start, and a
+// deployment that genuinely wants no Seq can afford it.
+if (string.IsNullOrEmpty(seqUrl))
+{
+    app.Logger.LogWarning(
+        "Seq sink disabled — no Seq:Url configured. Set Seq:Url in appsettings.json, or Seq__Url in .env.");
+}
+else
+{
+    app.Logger.LogInformation("Seq sink enabled -> {SeqUrl}", seqUrl);
+}
 
 app.UseSerilogRequestLogging();
 
