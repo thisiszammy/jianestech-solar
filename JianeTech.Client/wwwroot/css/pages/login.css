@@ -186,7 +186,12 @@
     text-decoration: underline;
 }
 
+/* Two lines of fine print: the audit note, then the version stamp, which takes
+   its colour from here (version.css) — so --ink-4 is doing double duty, and is
+   the value to check if this ground ever changes. */
 .login__foot {
+    display: grid;
+    gap: var(--s-2);
     margin-top: var(--s-8);
     padding-top: var(--s-4);
     border-top: 1px solid var(--border);

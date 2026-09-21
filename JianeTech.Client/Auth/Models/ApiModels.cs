@@ -551,3 +551,14 @@ public class SavedInvestmentScheme
 {
     public Guid SchemeId { get; set; }
 }
+
+/// <summary>
+/// What the API says it is running. Mirrors
+/// <c>JianeTech.Api.Models.Responses.VersionResponse</c>, and like it carries one fact.
+/// The console's own version never travels: it is a constant this app was compiled
+/// with, and <c>Program.Version</c> is where it lives.
+/// </summary>
+public class ServerVersion
+{
+    public string Version { get; set; } = string.Empty;
+}

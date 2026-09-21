@@ -1,0 +1,48 @@
+/* ============================================================================
+   version.css — the version stamp (Shared/VersionStamp.razor).
+
+   A record's revision, set in the corner of the sheet: label, then figure, at
+   the smallest size the page uses.
+
+   There is no colour in this file, and that is the design. The stamp inherits
+   the colour of whatever fine print it is set among — .foot__legal on the navy
+   panel, .login__foot on paper — so it is legible on either ground, in either
+   theme, without a rule for each. Both of those hosts are already held to
+   4.5:1. Put it somewhere new and the host's colour is the thing to check.
+   ========================================================================== */
+
+.version {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--s-4);
+    margin: 0;
+    font-size: var(--text-xs);
+
+    /* Versions are figures. Tabular, so 0.1.9 becoming 0.1.10 widens the line by
+       exactly one digit rather than by whatever that digit happens to measure. */
+    font-variant-numeric: var(--numeric);
+}
+
+/* A pair never breaks across lines — "Server" at the end of one line and its
+   figure at the start of the next reads as two separate facts. The pairs
+   themselves may wrap, which is what .version's flex-wrap is for. */
+.version__item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-1);
+    white-space: nowrap;
+}
+
+/* Weight is the whole of the hierarchy: the label is the host's fine print, and
+   the figure is the same colour set heavier. */
+.version__value {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* The server's figure arrives after the first paint. Holding roughly the width
+   of "v0.1.0" while it is on its way keeps a right-aligned stamp — the landing
+   page's — from stepping sideways when it lands. */
+.version__value--pending {
+    min-width: 5ch;
+}

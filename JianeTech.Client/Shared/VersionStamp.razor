@@ -1,0 +1,79 @@
+@*
+    VersionStamp — which build of each half is running.
+
+    Two figures, because there are two things that can be out of date. The
+    client's is a constant this app was compiled with, so it is on the page from
+    the first frame. The server's is a reading taken over the wire: a Release
+    deployment builds and ships the two separately, and "which API is actually
+    answering" is the question somebody asks at the worst possible moment — so
+    the footer answers it before they have to.
+
+    It is fine print, and it is set as fine print. The console dresses as an
+    official record, and a record's revision lives in the corner of the sheet:
+    a label and a figure, the same order as the rail, at the smallest size the
+    page uses. No colour of its own — it takes whatever its host's fine print is
+    set in, which is what makes it legible on the navy panel and on paper without
+    a rule for each. Emphasis is weight alone.
+
+    Nothing moves. The server's figure is a still ellipsis until it arrives,
+    because motion in this console answers a person's action and nothing here
+    loops. And no live region: a version arriving is not news, and announcing it
+    on every page load would make it some.
+
+    Labelled in the maintainers' words on purpose. Nobody reads this line except
+    whoever has been asked "what version are you on?", and the answer they need
+    to give back is in terms of the two projects.
+*@
+@inject ServerVersionProvider VersionProvider
+
+@* A description list with each pair in a div — the structure the rail uses, and
+   for the same reason: these are names and their values, not a sentence. *@
+<dl class="version">
+    <div class="version__item">
+        <dt class="version__label">Client</dt>
+        <dd class="version__value">@ClientText</dd>
+    </div>
+
+    <div class="version__item">
+        <dt class="version__label">Server</dt>
+        @if (_server is null)
+        {
+            <dd class="version__value version__value--pending">
+                <span class="sr-only">checking</span>
+                <span aria-hidden="true">&hellip;</span>
+            </dd>
+        }
+        else
+        {
+            <dd class="version__value">@ServerText</dd>
+        }
+    </div>
+</dl>
+
+@code {
+    private const string ClientText = "v" + Program.Version;
+
+    /// <summary>Null while the answer is still on its way.</summary>
+    private ServerVersionReading? _server;
+
+    /// <summary>
+    /// The two refusals are worded apart because they are different faults, and only
+    /// one of them is the server's. "Unreachable" is no answer at all. "Not reported"
+    /// is an answer without a version in it — an API older than the endpoint, or the
+    /// rate limiter — and calling that unreachable would be untrue.
+    /// </summary>
+    private string ServerText => _server switch
+    {
+        { Version: { } version } => $"v{version}",
+        { Reached: false } => "unreachable",
+        _ => "not reported",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Asked, not waited on: the stamp has already painted with the client's figure
+        // by the time this comes back. When another page has asked already, the task is
+        // complete, this does not yield, and the first frame carries both.
+        _server = await VersionProvider.GetAsync();
+    }
+}

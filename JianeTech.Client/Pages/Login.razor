@@ -130,9 +130,14 @@
                 New to the fund? <a href="register">Open an account</a>
             </p>
 
-            <p class="login__foot">
-                Every sign-in, accepted or refused, is written to the fund's activity log.
-            </p>
+            @* The form's fine print, under one rule: what signing in records, and
+               which build is about to record it. The stamp sits here rather than
+               in a corner of the page because on a phone there is no corner —
+               this column is the page. *@
+            <footer class="login__foot">
+                <p>Every sign-in, accepted or refused, is written to the fund's activity log.</p>
+                <VersionStamp />
+            </footer>
         </div>
     </section>
 </div>

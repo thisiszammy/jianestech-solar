@@ -274,6 +274,21 @@ public class FundApiClient
             new SetInvestmentSchemeActiveRequest { IsActive = isActive },
             cancellationToken);
 
+    // --- The host ----------------------------------------------------------------
+
+    /// <summary>
+    /// The version the API reports for itself. Anonymous: the landing page and the
+    /// sign-in screen both print it before anybody has a session.
+    /// </summary>
+    /// <remarks>
+    /// Components go through <see cref="ServerVersionProvider"/> rather than calling this.
+    /// This client is registered transient, so it has nowhere to keep an answer; the
+    /// provider is what lets every stamp the app renders share one request.
+    /// </remarks>
+    public Task<ApiResponse<ServerVersion>> GetServerVersionAsync(
+        CancellationToken cancellationToken = default)
+        => GetAsync<ServerVersion>("api/system/version", cancellationToken);
+
     /// <summary>
     /// One query-string parameter, or nothing at all when the value is unset. Dates go
     /// over as a plain calendar day: the filter means "this day", and letting a round-trip

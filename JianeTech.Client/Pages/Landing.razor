@@ -418,6 +418,10 @@
             </nav>
         </div>
 
+        @* The stamp goes last, so it takes the strip's right-hand end — where a
+           drawing keeps its revision — and keeps it when the draft notice in the
+           middle is deleted at launch. It is a real figure, not a placeholder,
+           which is why it is the one thing in this strip that wears no dashes. *@
         <div class="landing__wrap foot__legal">
             <p>&copy; @DateTime.Now.Year Jiane&rsquo;s Tech Enterprise.</p>
             <p>
@@ -425,6 +429,7 @@
                     Draft page. Anything outlined with dashes is a placeholder, and so is every photograph.
                 </span>
             </p>
+            <VersionStamp />
         </div>
     </footer>
 </div>

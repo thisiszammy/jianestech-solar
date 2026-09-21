@@ -294,8 +294,8 @@ Both are load-bearing and commented at the call site:
 5. **Auth attributes.** `[Authorize(Roles = ConsoleRoles.Administrator)]` for anything that
    runs the fund — users, dashboard, activity logs, both scheme registers. Plain
    `[Authorize]` only where every account holder belongs (`/api/auth/me`, logout).
-   `[AllowAnonymous]` on public flows (sign in, refresh, and all of
-   `AccountApiController`). Rate-limit credential submission with
+   `[AllowAnonymous]` on public flows (sign in, refresh, all of
+   `AccountApiController`, and `SystemApiController`). Rate-limit credential submission with
    `[EnableRateLimiting("auth-strict")]` (5/min per IP) and session upkeep with
    `"auth-general"` (60/min per IP).
 
@@ -355,6 +355,35 @@ so this one paints at once. The console lives under `/manage`.
   falls under 12px below a 960px viewport, where the tall one takes over.
 - Bright gold stays on the dark panel here as everywhere: `.btn--brand` and the gold run live
   only on `.landing__panel`, the class that also flips `--focus` to `--gold-lit` in `tokens.css`.
+
+## Versioning — two constants, one stamp
+
+Each half carries its display version as `Program.Version`, a constant in its own
+`Program.cs`. **A release bumps the same line in both files**; nothing derives one from the
+other, because a Release deployment builds and ships the two separately.
+
+- **The client's `Program` is `internal`, and must stay that way.** A Debug build of
+  `JianeTech.Api` references the client assembly, and a second *public* `Program` in the
+  global namespace would collide with the host's own (CS0436).
+- **The server's version reaches the browser through `GET /api/system/version`**
+  (`SystemApiController`) — anonymous, on `auth-general`, and `no-store`: the one job of that
+  answer is to say what is running *now*, and an anonymous cookie-less GET is exactly what a
+  proxy would otherwise keep. It reports the version and nothing else — no environment,
+  machine or framework detail belongs on an endpoint a stranger can call. There is no
+  service behind it; the version is metadata about the process, not business logic.
+- **`Shared/VersionStamp.razor` prints both**, and sits in the footers of the landing page
+  (`.foot__legal`) and the sign-in screen (`.login__foot`). `ServerVersionProvider` caches the
+  *Task*, as the auth state provider does, so every stamp in one app load shares one request;
+  a reading that came back without a version is not kept, so the next page asks again.
+- **The two refusals are worded apart because they are different faults.** "unreachable" is
+  no answer at all; "not reported" is an answer with no version in it — a 429, or an API
+  older than the endpoint. Whatever happens, the stamp must never be the reason a page
+  fails: the provider swallows everything and the page renders regardless.
+- **`version.css` sets no colour.** The stamp inherits its host's fine-print colour, which is
+  what makes it legible on the navy panel and on paper, in both themes, without a rule for
+  each. Put it somewhere new and the host's colour is the thing to check against 4.5:1.
+- Nothing in it moves and nothing is announced: the pending state is a still ellipsis, and
+  there is no live region, because a version arriving is not news.
 
 ## Design system
 

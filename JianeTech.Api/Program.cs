@@ -47,6 +47,11 @@ builder.Host.UseSerilog((ctx, lc) =>
 #else
     lc.WriteTo.Console();
 #endif
+    var seqUrl = ctx.Configuration["Seq:Url"];
+    if (!string.IsNullOrEmpty(seqUrl))
+    {
+        lc.WriteTo.Seq(seqUrl);
+    }
 });
 
 // ---------------------------------------------------------------------------
@@ -302,7 +307,6 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-await DatabaseInitializer.InitializeAsync(app);
 
 app.UseSerilogRequestLogging();
 
@@ -408,5 +412,5 @@ app.Run();
 public partial class Program
 {
     /// <summary>Display version — bump manually on each release.</summary>
-    public const string Version = "0.1.0";
+    public const string Version = "0.2.2";
 }
